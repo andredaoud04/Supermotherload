@@ -12,5 +12,7 @@
 - Browser reload restored the colony, 2 remaining copper, 36 credits, and the level-1 drill upgrade. Keyboard dismount transitioned to an on-foot character.
 - Browser playtesting exposed a dismount risk beside an excavated shaft. Exit now requires a nearby landing, and the pause menu provides emergency recovery at a half-cargo penalty. Rebuilt successfully with **29 checks, 0 failures**, including the new unsafe-shaft regression.
 - Corrupt-save recovery now uses a non-logging JSON parser; expected corruption no longer emits a runtime error during the test suite.
+- GitHub Actions independently passed the complete Linux test/export workflow for commit `7f788568df84e0547b9ca82384f82a278d63317b` (run `38407042532`).
+- Mobile controls enlarged and four multi-touch regression checks added: directional dragging, simultaneous movement/aim, independent finger release, and focus/reset clearing held input. **33 checks, 0 failures** in the updated local build.
 
 Physical iPhone/iPad Safari, thermal behavior, and native exports are not yet tested. No claim of finished art or production performance is made.

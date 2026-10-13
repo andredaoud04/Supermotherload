@@ -19,6 +19,8 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	font = ThemeDB.fallback_font
 	show_touch = DisplayServer.is_touchscreen_available()
+	if OS.has_feature("web"):
+		show_touch = show_touch or JavaScriptBridge.eval("matchMedia('(pointer: coarse)').matches") == true
 
 func _draw() -> void:
 	buttons.clear()
@@ -43,6 +45,8 @@ func _draw() -> void:
 		label_at(Vector2(24, screen.y - 160), game.saves.last_error, 14, Color("ff8a86"))
 
 func label_at(point: Vector2, text: String, font_size: int = 16, color: Color = Color.WHITE) -> void:
+	if show_touch and font_size < 18:
+		font_size = maxi(16, font_size)
 	draw_string(font, point, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
 func panel(rect: Rect2, color: Color = Color("14232d")) -> void:
@@ -109,6 +113,7 @@ func _draw_mine(screen: Vector2) -> void:
 		label_at(screen * 0.5 + Vector2(-113, -13), "Progress saved. Take your time.", 15, muted)
 		button("resume", Rect2(screen * 0.5 + Vector2(-100, 18), Vector2(200, 52)), "RESUME", true)
 		button("recover", Rect2(screen * 0.5 + Vector2(-164, 88), Vector2(328, 45)), "RECOVER RIG / LOSE HALF CARGO")
+		button("controls", Rect2(screen * 0.5 + Vector2(-164, 147), Vector2(328, 48)), "CONTROLS: TOUCH" if show_touch else "CONTROLS: KEYBOARD + MOUSE")
 
 func _draw_touch(screen: Vector2) -> void:
 	var left := move_origin if move_finger >= 0 else Vector2(104, screen.y - 97)
@@ -122,9 +127,9 @@ func _draw_touch(screen: Vector2) -> void:
 		draw_arc(right, 59, 0, TAU, 36, amber, 2)
 		draw_circle(right + game.touch_aim * 34, 18, amber)
 		label_at(right + Vector2(-29, 82), "AIM / FIRE", 11, muted)
-		button("boost", Rect2(screen.x - 253, screen.y - 92, 79, 58), "BOOST")
-	button("interact", Rect2(screen.x - 170, screen.y - 215, 148, 48), "DISMOUNT" if game.mounted else "BOARD")
-	button("return", Rect2(screen.x - 170, screen.y - 272, 148, 48), "COLONY", game.near_lift() and game.mounted)
+		button("boost", Rect2(screen.x - 271, screen.y - 101, 96, 68), "BOOST")
+	button("interact", Rect2(screen.x - 185, screen.y - 241, 161, 64), "DISMOUNT" if game.mounted else "BOARD")
+	button("return", Rect2(screen.x - 364, screen.y - 241, 161, 64), "COLONY", game.near_lift() and game.mounted)
 
 func _draw_colony(screen: Vector2) -> void:
 	draw_rect(Rect2(Vector2.ZERO, screen), Color("0c1821"))
@@ -232,7 +237,7 @@ func _click(point: Vector2) -> bool:
 	for id in buttons:
 		if not buttons[id].has_point(point):
 			continue
-		if game.paused and id not in ["resume", "pause", "recover"]:
+		if game.paused and id not in ["resume", "pause", "recover", "controls"]:
 			return true
 		match id:
 			"start": game.start_game()
@@ -241,6 +246,9 @@ func _click(point: Vector2) -> bool:
 			"depart": game.depart()
 			"drill", "workshop", "quarters": game.build_room(id)
 			"mute": game.sounds.muted = not game.sounds.muted
+			"controls":
+				show_touch = not show_touch
+				game.clear_controls()
 			"recover":
 				game.paused = false
 				game.recover()

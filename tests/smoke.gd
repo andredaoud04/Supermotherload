@@ -109,6 +109,32 @@ func run() -> void:
 	game.save_game()
 	var restored := game.saves.read()
 	check(bool(restored.progress.regulator) and int(restored.progress.cargo_copper) == 5, "full gameplay save persists progression")
+	# Separate fingers may move and aim simultaneously; lifting one must not stop the other.
+	game.mounted = false
+	game.hud.buttons.clear()
+	var touch := InputEventScreenTouch.new()
+	touch.index = 0
+	touch.position = Vector2(100, 450)
+	touch.pressed = true
+	game.hud.handle_event(touch)
+	var drag := InputEventScreenDrag.new()
+	drag.index = 0
+	drag.position = Vector2(145, 450)
+	game.hud.handle_event(drag)
+	check(game.touch_move.x > 0.8, "touch joystick produces directional movement")
+	touch.index = 1
+	touch.position = Vector2(850, 450)
+	game.hud.handle_event(touch)
+	drag.index = 1
+	drag.position = Vector2(885, 430)
+	game.hud.handle_event(drag)
+	check(game.touch_fire and game.touch_aim.x > 0.5 and game.touch_move.x > 0.8, "multi-touch supports movement and aim simultaneously")
+	touch.index = 0
+	touch.pressed = false
+	game.hud.handle_event(touch)
+	check(game.touch_move == Vector2.ZERO and game.touch_fire, "releasing movement finger preserves aiming finger")
+	game.clear_controls()
+	check(not game.touch_fire and game.touch_aim == Vector2.ZERO, "focus/reset clears held touch controls")
 	for slot in 2:
 		DirAccess.remove_absolute(game.saves.prefix + "_%d.json" % slot)
 	game.queue_free()
