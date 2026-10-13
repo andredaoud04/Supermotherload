@@ -57,8 +57,12 @@ func button(id: String, rect: Rect2, text: String, primary: bool = false) -> voi
 	buttons[id] = rect
 	draw_rect(rect, amber if primary else Color("182b36"))
 	draw_rect(rect, amber if primary else Color("4b6268"), false, 1)
-	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
-	label_at(rect.position + Vector2((rect.size.x - width) * 0.5, rect.size.y * 0.5 + 5), text, 15, Color("19252d") if primary else ink)
+	var text_size := 16 if show_touch else 15
+	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, text_size).x
+	while width > rect.size.x - 12 and text_size > 11:
+		text_size -= 1
+		width = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, text_size).x
+	draw_string(font, rect.position + Vector2((rect.size.x - width) * 0.5, rect.size.y * 0.5 + 5), text, HORIZONTAL_ALIGNMENT_LEFT, -1, text_size, Color("19252d") if primary else ink)
 
 func _draw_title(screen: Vector2) -> void:
 	draw_rect(Rect2(Vector2.ZERO, screen), Color(0.02, 0.045, 0.07, 0.78))
@@ -156,6 +160,10 @@ func _draw_colony(screen: Vector2) -> void:
 	button("drill", Rect2(45 + offset, 251, 225, 34), "UPGRADE  ·  %d COPPER" % (10 + game.progress.drill_level * 10) if game.progress.drill_level < 3 else "FULLY UPGRADED")
 	button("workshop", Rect2(545 + offset, 251, 260, 34), "OPERATIONAL" if game.progress.workshop else "BUILD  ·  8 COPPER + REGULATOR")
 	button("quarters", Rect2(45 + offset, 398, 268, 34), "INHABITED" if game.progress.quarters else "BUILD  ·  12 COPPER + 3 CRYSTAL")
+	# Whole rooms are tap targets, including their labels and decoration.
+	buttons["drill"] = Rect2(30 + offset, 169, 397, 128)
+	buttons["workshop"] = Rect2(529 + offset, 169, 397, 128)
+	buttons["quarters"] = Rect2(30 + offset, 316, 397, 128)
 	button("depart", Rect2(screen.x - 292, screen.y - 69, 264, 47), "DESCEND TO THE MINE   v", true)
 	label_at(Vector2(30 + offset, screen.y - 39), "Haul banked. Tunnels preserved. Equipment restored.", 13, muted)
 

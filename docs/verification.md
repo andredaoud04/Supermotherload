@@ -14,5 +14,7 @@
 - Corrupt-save recovery now uses a non-logging JSON parser; expected corruption no longer emits a runtime error during the test suite.
 - GitHub Actions independently passed the complete Linux test/export workflow for commit `7f788568df84e0547b9ca82384f82a278d63317b` (run `38407042532`).
 - Mobile controls enlarged and four multi-touch regression checks added: directional dragging, simultaneous movement/aim, independent finger release, and focus/reset clearing held input. **33 checks, 0 failures** in the updated local build.
+- Inspected 844×390 phone landscape and 1024×768 tablet landscape viewports in Chromium. Touch layout and emergency recovery render and operate. Fixed colony button text fitting and made entire rooms tap targets. These are viewport checks, not physical iOS tests.
+- Initial Vercel production deployment succeeded at https://supermotherload.vercel.app using the repository's build configuration on the existing Hobby plan.
 
 Physical iPhone/iPad Safari, thermal behavior, and native exports are not yet tested. No claim of finished art or production performance is made.
