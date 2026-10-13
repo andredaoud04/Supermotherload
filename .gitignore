@@ -1,0 +1,10 @@
+.godot/
+.tools/
+.vercel/
+build/
+artifacts/
+node_modules/
+*.log
+.env*
+!.env.example
+export_credentials.cfg

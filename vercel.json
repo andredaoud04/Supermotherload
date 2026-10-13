@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "node tools/build.mjs",
+  "outputDirectory": "build/web",
+  "installCommand": "echo No npm dependencies required",
+  "headers": [
+    { "source": "/(.*)", "headers": [{ "key": "X-Content-Type-Options", "value": "nosniff" }] },
+    { "source": "/index.wasm", "headers": [{ "key": "Content-Type", "value": "application/wasm" }] },
+    { "source": "/", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+  ]
+}

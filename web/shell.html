@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0b1721">
+  <meta name="description" content="BELOW: a playable mining and exploration prototype. Pilot your drill, explore on foot, and build an underground colony.">
+  <title>BELOW · Project Gauntlet</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #0b1721; color: #e9dfce; font-family: system-ui, sans-serif; touch-action: none; overscroll-behavior: none; }
+    #canvas { display: block; width: 100%; height: 100%; outline: none; }
+    #loading { position: fixed; inset: 0; display: grid; place-content: center; padding: 32px; background: #0b1721; }
+    .eyebrow { color: #edb965; font-size: 11px; letter-spacing: .2em; }
+    h1 { font-size: clamp(58px, 12vw, 100px); letter-spacing: -.06em; margin: 10px 0; line-height: 1; }
+    p { color: #93a4a7; font-size: 14px; max-width: 450px; line-height: 1.6; }
+    progress { appearance: none; width: min(420px, 80vw); height: 4px; margin: 24px 0 8px; border: 0; background: #293841; }
+    progress::-webkit-progress-bar { background: #293841; }
+    progress::-webkit-progress-value { background: #edb965; }
+    progress::-moz-progress-bar { background: #edb965; }
+    #notice { color: #e9b594; white-space: pre-line; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  </style>
+  $GODOT_HEAD_INCLUDE
+</head>
+<body>
+  <canvas id="canvas" tabindex="0" aria-label="BELOW mining game. Move with WASD or arrows, E to dismount or board, mouse to aim and fire, Space to boost, R to return at the colony lift, Escape to pause."></canvas>
+  <div id="loading" role="status" aria-live="polite">
+    <div class="eyebrow">PROJECT GAUNTLET / SECTOR 07</div>
+    <h1>BELOW</h1>
+    <p>The surface is lost. The depths are not.</p>
+    <progress id="progress" max="100" value="0"></progress>
+    <p id="notice">Preparing your expedition…</p>
+  </div>
+  <noscript>This game requires JavaScript and WebGL 2. Enable JavaScript to play.</noscript>
+  <script src="$GODOT_URL"></script>
+  <script>
+    const config = $GODOT_CONFIG;
+    const engine = new Engine(config);
+    const loading = document.getElementById('loading');
+    const progress = document.getElementById('progress');
+    const notice = document.getElementById('notice');
+    const missing = Engine.getMissingFeatures({threads: $GODOT_THREADS_ENABLED});
+    function fail(error) {
+      notice.textContent = 'Unable to start: ' + (error.message || error) + '\nTry an up-to-date browser with WebGL 2 enabled.';
+      progress.hidden = true;
+      console.error(error);
+    }
+    if (missing.length) fail(missing.join(', '));
+    else engine.startGame({onProgress(current, total) {
+      if (total) { progress.value = current / total * 100; notice.textContent = 'Loading expedition · ' + Math.round(progress.value) + '%'; }
+    }}).then(() => { loading.remove(); document.getElementById('canvas').focus(); }).catch(fail);
+    document.addEventListener('contextmenu', event => event.preventDefault());
+  </script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+name: Verify and export Godot web build
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .tools/godot
+            .tools/templates
+          key: godot-4.6.3-linux-web-v1
+      - run: node tools/build.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: below-web
+          path: build/web/
+          retention-days: 7
