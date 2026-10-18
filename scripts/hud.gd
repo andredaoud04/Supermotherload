@@ -9,6 +9,7 @@ var boost_finger := -1
 var move_origin := Vector2.ZERO
 var aim_origin := Vector2.ZERO
 var show_touch := false
+var controls_selected := false
 var ink := Color("d9e3df")
 var muted := Color("82969a")
 var amber := Color("edb965")
@@ -36,18 +37,24 @@ func _draw() -> void:
 		_draw_colony(screen)
 	else:
 		_draw_mine(screen)
-	if game.toast_time > 0 and game.mode != "title":
+	if game.toast_time > 0 and game.mode != "title" and not game.paused and not game.map_open:
 		var box := Rect2(24, 111, screen.x - 48, 38)
 		draw_rect(box, Color(0.03, 0.07, 0.10, 0.93))
 		draw_rect(Rect2(24, 111, 3, 38), amber)
-		label_at(Vector2(38, 135), game.toast, 14, ink)
+		fit_label(Vector2(38, 135), game.toast, screen.x - 76, 14, ink)
 	if not game.last_save_ok:
 		label_at(Vector2(24, screen.y - 160), game.saves.last_error, 14, Color("ff8a86"))
 
 func label_at(point: Vector2, text: String, font_size: int = 16, color: Color = Color.WHITE) -> void:
 	if show_touch and font_size < 18:
-		font_size = maxi(16, font_size)
+		font_size = 18
 	draw_string(font, point, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+
+func fit_label(point: Vector2, text: String, width: float, size: int, color: Color) -> void:
+	var pixels := maxi(16, size) if show_touch else size
+	while pixels > 12 and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, pixels).x > width:
+		pixels -= 1
+	draw_string(font, point, text, HORIZONTAL_ALIGNMENT_LEFT, width, pixels, color)
 
 func panel(rect: Rect2, color: Color = Color("14232d")) -> void:
 	draw_rect(rect, color)
@@ -57,7 +64,7 @@ func button(id: String, rect: Rect2, text: String, primary: bool = false) -> voi
 	buttons[id] = rect
 	draw_rect(rect, amber if primary else Color("182b36"))
 	draw_rect(rect, amber if primary else Color("4b6268"), false, 1)
-	var text_size := 16 if show_touch else 15
+	var text_size := 18 if show_touch else 15
 	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, text_size).x
 	while width > rect.size.x - 12 and text_size > 11:
 		text_size -= 1
@@ -80,7 +87,7 @@ func _draw_title(screen: Vector2) -> void:
 
 func _draw_mine(screen: Vector2) -> void:
 	panel(Rect2(18, 16, 169, 75))
-	label_at(Vector2(31, 38), "DEPTH / SECTOR 07", 11, muted)
+	label_at(Vector2(31, 38), "DEPTH" if show_touch else "DEPTH / SECTOR 07", 11, muted)
 	label_at(Vector2(30, 72), "%03d" % game.depth(), 30, amber)
 	label_at(Vector2(101, 71), "METERS", 11, ink)
 	panel(Rect2(199, 16, 270, 75))
@@ -90,34 +97,103 @@ func _draw_mine(screen: Vector2) -> void:
 	draw_rect(Rect2(214, 56, 171, 7), Color("35404a"))
 	draw_rect(Rect2(214, 56, 171 * clampf(hp / maximum, 0, 1), 7), cyan if hp > 30 else Color("ed7b75"))
 	label_at(Vector2(397, 65), "%d%%" % int(hp / maximum * 100), 13, ink)
-	var right := screen.x - 244
+	var right := screen.x - 342
 	panel(Rect2(right, 16, 151, 75))
 	label_at(Vector2(right + 13, 38), "CARGO", 11, muted)
 	label_at(Vector2(right + 13, 70), "%02d / %02d" % [game.progress.cargo_count(), game.progress.capacity()], 23, amber)
-	button("pause", Rect2(screen.x - 79, 16, 61, 34), "II")
-	button("mute", Rect2(screen.x - 79, 56, 61, 35), "SFX" if not game.sounds.muted else "MUTE")
+	button("map", Rect2(screen.x - 179, 16, 75, 75), "MAP")
+	button("pause", Rect2(screen.x - 93, 16, 75, 75), "II")
 	var objective := "Mine copper > upgrade your drill bay" if game.progress.drill_level == 0 else "Find the regulator in the old pumping station"
 	if game.progress.regulator:
 		objective = "Return with the regulator > construct your workshop" if not game.progress.workshop else "Explore deeper > find blue crystals for living quarters"
+	if game.progress.quarters:
+		objective = "Colony established. Explore the depths and upgrade your drill bay."
 	if not show_touch:
 		panel(Rect2(18, screen.y - 63, screen.x - 36, 45))
 		label_at(Vector2(32, screen.y - 35), objective, 14, ink)
 		button("interact", Rect2(screen.x - 324, screen.y - 120, 152, 43), "E  DISMOUNT" if game.mounted else "E  BOARD")
 		button("return", Rect2(screen.x - 161, screen.y - 120, 143, 43), "R  COLONY", game.near_lift() and game.mounted)
-		label_at(Vector2(23, screen.y - 82), "WASD move  ·  E board  ·  Space boost  ·  Aim + click fire", 12, muted)
+		label_at(Vector2(23, screen.y - 82), "WASD move  ·  E board  ·  Space boost  ·  Tab map", 12, muted)
 	else:
 		_draw_touch(screen)
 	if not game.mounted:
 		var direction: Vector2 = game.rig_pos - game.foot_pos
 		label_at(Vector2(25, 177), "RIG  %dm  %s" % [int(direction.length() / 4), ">" if direction.x > 0 else "<"], 12, amber)
 		label_at(Vector2(25, 197), "BOOST  %d%%" % int(game.jet / 1.4 * 100), 12, cyan)
+		if not show_touch:
+			var reticle: Vector2 = game.foot_pos - game.camera_pos + game.camera_offset + screen * 0.5 + game.weapon_direction * 95
+			var tint := Color("fff1ba") if game.hit_marker > 0 else Color(0.83, 0.91, 0.87, 0.7)
+			for side in [-1, 1]:
+				draw_line(reticle + Vector2(side * 4, 0), reticle + Vector2(side * 9, 0), tint, 1)
+				draw_line(reticle + Vector2(0, side * 4), reticle + Vector2(0, side * 9), tint, 1)
+	if game.hurt_cooldown > 0.4 and not game.reduced_motion:
+		draw_rect(Rect2(Vector2(2, 2), screen - Vector2(4, 4)), Color(0.9, 0.29, 0.25, (game.hurt_cooldown - 0.4) * 1.6), false, 5)
+	if game.map_open:
+		_draw_map(screen)
 	if game.paused:
+		buttons.clear()
 		draw_rect(Rect2(Vector2.ZERO, screen), Color(0.02, 0.04, 0.06, 0.86))
-		label_at(screen * 0.5 + Vector2(-89, -47), "EXPEDITION PAUSED", 20, ink)
-		label_at(screen * 0.5 + Vector2(-113, -13), "Progress saved. Take your time.", 15, muted)
-		button("resume", Rect2(screen * 0.5 + Vector2(-100, 18), Vector2(200, 52)), "RESUME", true)
-		button("recover", Rect2(screen * 0.5 + Vector2(-164, 88), Vector2(328, 45)), "RECOVER RIG / LOSE HALF CARGO")
-		button("controls", Rect2(screen * 0.5 + Vector2(-164, 147), Vector2(328, 48)), "CONTROLS: TOUCH" if show_touch else "CONTROLS: KEYBOARD + MOUSE")
+		var center := screen * 0.5
+		panel(Rect2(center + Vector2(-260, -211), Vector2(520, 422)), Color("10212b"))
+		label_at(center + Vector2(-226, -168), "EXPEDITION PAUSED", 24, ink)
+		label_at(center + Vector2(-226, -137), "Progress saved." if game.last_save_ok else "Save unavailable. Keep this session open.", 16, muted)
+		button("resume", Rect2(center + Vector2(-226, -116), Vector2(452, 64)), "RESUME EXPEDITION", true)
+		button("controls", Rect2(center + Vector2(-226, -42), Vector2(452, 64)), "CONTROLS: TOUCH" if show_touch else "CONTROLS: KEYBOARD + MOUSE")
+		button("mute", Rect2(center + Vector2(-226, 32), Vector2(218, 64)), "AUDIO: OFF" if game.sounds.muted else "AUDIO: ON")
+		button("motion", Rect2(center + Vector2(8, 32), Vector2(218, 64)), "MOTION: REDUCED" if game.reduced_motion else "MOTION: FULL")
+		button("recover", Rect2(center + Vector2(-226, 106), Vector2(452, 64)), "RECOVER RIG / LOSE HALF CARGO")
+		label_at(center + Vector2(-226, 183), "Recovery returns your rig to the colony lift.", 14, muted)
+
+func _draw_map(screen: Vector2) -> void:
+	buttons.clear()
+	draw_rect(Rect2(Vector2.ZERO, screen), Color(0.025, 0.055, 0.08, 0.98))
+	label_at(Vector2(30, 44), "SECTOR 07 / GROUND SURVEY", 24, ink)
+	label_at(Vector2(30, 73), "Survey grows as you explore. Expedition paused.", 15, muted)
+	button("map", Rect2(screen.x - 174, 24, 144, 64), "CLOSE MAP", true)
+	var scale := minf((screen.x - 340) / MineTerrain.WIDTH, (screen.y - 132) / MineTerrain.HEIGHT)
+	var map_size := Vector2(MineTerrain.WIDTH, MineTerrain.HEIGHT) * scale
+	var origin := Vector2((screen.x - map_size.x) * 0.5, 108)
+	panel(Rect2(origin - Vector2(4, 4), map_size + Vector2(8, 8)), Color("07121b"))
+	for key in game.survey:
+		var id := int(key)
+		var cell := Vector2i(id % MineTerrain.WIDTH, id / MineTerrain.WIDTH)
+		var material: int = game.terrain.at(cell)
+		var color := Color("314452")
+		match material:
+			MineTerrain.Tile.AIR: color = Color("111f2b")
+			MineTerrain.Tile.COPPER: color = amber
+			MineTerrain.Tile.CRYSTAL: color = cyan
+			MineTerrain.Tile.BEDROCK: color = Color("58616d")
+		draw_rect(Rect2(origin + Vector2(cell) * scale, Vector2.ONE * scale), color)
+	# Survey markers never reveal undiscovered objectives or enemy positions.
+	_map_marker(origin, scale, game.ENTRY, "LIFT", amber)
+	if game.surveyed(game.RELIC):
+		_map_marker(origin, scale, game.RELIC, "OLD STATION", cyan)
+	var player: Vector2 = game.rig_pos if game.mounted else game.foot_pos
+	var p := origin + player / MineTerrain.TILE * scale
+	if not game.mounted:
+		var rig: Vector2 = origin + game.rig_pos / MineTerrain.TILE * scale
+		draw_rect(Rect2(rig - Vector2(4, 3), Vector2(8, 6)), amber)
+	draw_circle(p, 5, Color("f8eee0"))
+	draw_arc(p, 9, 0, TAU, 20, Color("f8eee0"), 1)
+	label_at(Vector2(30, 136), "LEGEND", 13, muted)
+	for i in 4:
+		var colors := [amber, cyan, Color("f8eee0"), Color("314452")]
+		var labels := ["Copper", "Crystal", "You", "Surveyed rock"]
+		draw_rect(Rect2(30, 158 + i * 32, 8, 8), colors[i])
+		label_at(Vector2(47, 167 + i * 32), labels[i], 14, ink)
+	label_at(Vector2(30, screen.y - 37), "TAB / M", 13, amber)
+	var right := origin.x + map_size.x + 24
+	label_at(Vector2(right, 137), "RETURN ROUTE", 13, amber)
+	label_at(Vector2(right, 166), "Follow your tunnels", 13, ink)
+	label_at(Vector2(right, 189), "to the amber lift.", 13, ink)
+	label_at(Vector2(right, 226), "Bank your cargo", 13, muted)
+	label_at(Vector2(right, 249), "before going deeper.", 13, muted)
+
+func _map_marker(origin: Vector2, scale: float, point: Vector2, title: String, color: Color) -> void:
+	var p := origin + point / MineTerrain.TILE * scale
+	draw_rect(Rect2(p - Vector2(4, 4), Vector2(8, 8)), color, false, 2)
+	label_at(p + Vector2(11, 5), title, 11, color)
 
 func _draw_touch(screen: Vector2) -> void:
 	var left := move_origin if move_finger >= 0 else Vector2(104, screen.y - 97)
@@ -205,7 +281,8 @@ func handle_event(event: InputEvent) -> bool:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 		return _click(event.position)
 	if event is InputEventScreenTouch:
-		show_touch = true
+		if event.pressed and not controls_selected:
+			show_touch = true
 		if not event.pressed:
 			if event.index == move_finger:
 				move_finger = -1
@@ -224,7 +301,7 @@ func handle_event(event: InputEvent) -> bool:
 			return true
 		if _click(event.position):
 			return true
-		if game.mode == "mine" and not game.paused and event.position.y > screen.y * 0.4:
+		if game.mode == "mine" and not game.paused and not game.map_open and event.position.y > screen.y * 0.4:
 			if event.position.x < screen.x * 0.45 and move_finger < 0:
 				move_finger = event.index
 				move_origin = event.position
@@ -245,7 +322,9 @@ func _click(point: Vector2) -> bool:
 	for id in buttons:
 		if not buttons[id].has_point(point):
 			continue
-		if game.paused and id not in ["resume", "pause", "recover", "controls"]:
+		if game.paused and id not in ["resume", "pause", "recover", "controls", "mute", "motion"]:
+			return true
+		if game.map_open and not game.paused and id != "map":
 			return true
 		match id:
 			"start": game.start_game()
@@ -253,10 +332,18 @@ func _click(point: Vector2) -> bool:
 			"return": game.return_to_colony()
 			"depart": game.depart()
 			"drill", "workshop", "quarters": game.build_room(id)
-			"mute": game.sounds.muted = not game.sounds.muted
+			"map": game.toggle_map()
+			"mute":
+				game.sounds.muted = not game.sounds.muted
+				game.save_game()
+			"motion":
+				game.reduced_motion = not game.reduced_motion
+				game.save_game()
 			"controls":
 				show_touch = not show_touch
+				controls_selected = true
 				game.clear_controls()
+				game.save_game()
 			"recover":
 				game.paused = false
 				game.recover()

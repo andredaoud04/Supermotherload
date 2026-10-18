@@ -106,10 +106,15 @@ func export_state() -> Dictionary:
 	return {"seed": seed_value, "edits": edits.duplicate()}
 
 func restore(data: Dictionary) -> void:
-	generate(int(data.get("seed", 17041)))
-	var stored: Dictionary = data.get("edits", {})
+	var seed_data: Variant = data.get("seed", 17041)
+	generate(int(seed_data) if (seed_data is int or seed_data is float) and is_finite(float(seed_data)) and absf(float(seed_data)) < 9e15 else 17041)
+	var stored: Variant = data.get("edits", {})
+	if not stored is Dictionary:
+		return
 	for key in stored:
+		if not str(key).is_valid_int() or not (stored[key] is int or stored[key] is float):
+			continue
 		var id := int(key)
-		if id >= 0 and id < cells.size() and int(stored[key]) == Tile.AIR and cells[id] != Tile.BEDROCK:
+		if id >= 0 and id < cells.size() and stored[key] == Tile.AIR and cells[id] != Tile.BEDROCK:
 			cells[id] = Tile.AIR
 			edits[str(id)] = Tile.AIR

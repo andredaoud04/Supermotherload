@@ -1,5 +1,15 @@
 # Verification record
 
+## Controls, presentation and reliability update — October 18, 2026
+
+- Full `node tools/build.mjs` pipeline passed: **134 checks, zero failures** (33 gameplay, 39 persistence, 26 controls/navigation, 36 networking), followed by the release web export. The build now stops on script errors and times out hung subprocesses.
+- Control regressions cover acceleration/braking, joystick deadzone, collision, survey pause/resume, map plus focus-loss recovery, explicit touch preference retention, aim/shake alignment, reduced motion, malformed settings and terrain restoration.
+- Browser QA in Chromium inspected the new terrain atlas, industrial station, survey map and pause menu. A fresh test origin mined copper and extended the survey. Closing/reopening that origin restored touch controls, muted audio and reduced motion, with successful save status.
+- Inspected the new menu and map at 844×390 landscape; enlarged buttons and touch text remain readable. This is viewport validation, not physical-device or Safari certification.
+- Persistence checks use real files and a simulated browser adapter for denied storage, corrupt/stale mirrors, invalid types, oversized data, future-version protection and revision bounds. The real browser reload separately validates the shipped JavaScript bridge path.
+- The isolated networking spike connects two real localhost WebSocket clients and replicates authoritative mining state. It remains excluded from the public game pack. No online co-op, TLS service or paid infrastructure is claimed.
+- Presentation uses original procedural textures/geometry and cached synthesized sound. Bespoke sprite production, broader content, device performance profiling, and production multiplayer remain unfinished.
+
 ## Initial implementation session
 
 - Godot **4.6.3.stable.official.7d41c59c4** downloaded from godotengine/godot-builds; editor and export-template SHA512 verified against the release manifest.

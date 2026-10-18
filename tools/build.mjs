@@ -21,7 +21,7 @@ await mkdir('build/web', {recursive: true});
 await writeFile('build/.gdignore', '');
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
 function run(cmd, args) {
-  const result = spawnSync(cmd, args, {cwd: root, encoding: 'utf8'});
+  const result = spawnSync(cmd, args, {cwd: root, encoding: 'utf8', timeout: 180000, maxBuffer: 8 * 1024 * 1024});
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
   // Godot's editor can return 0 despite GDScript parse errors.
@@ -58,7 +58,9 @@ if (!await exists('.tools/templates/web_nothreads_release.zip')) {
 }
 await writeFile('.tools/godot/_sc_', '');
 run(executable, ['--headless', '--path', root, '--editor', '--import', '--quit', '--log-file', path.join(root, '.tools/import.log')]);
-run(executable, ['--headless', '--path', root, '--script', 'res://tests/smoke.gd', '--log-file', path.join(root, '.tools/test.log')]);
+for (const suite of ['smoke', 'persistence', 'controls', 'network_smoke']) {
+  run(executable, ['--headless', '--path', root, '--script', `res://tests/${suite}.gd`, '--log-file', path.join(root, `.tools/${suite}.log`)]);
+}
 run(executable, ['--headless', '--path', root, '--export-release', 'Web', 'build/web/index.html', '--log-file', path.join(root, '.tools/export.log')]);
 for (const file of ['index.html', 'index.js', 'index.wasm', 'index.pck']) if (!await exists(`build/web/${file}`)) throw new Error(`Missing ${file}`);
 await writeFile('build/web/build-info.json', JSON.stringify({engine: version, commit: process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || 'local'}, null, 2));

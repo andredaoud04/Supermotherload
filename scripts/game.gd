@@ -17,6 +17,7 @@ var saves := Saves.new()
 var mode := "title"
 var mounted := true
 var rig_pos := ENTRY
+var rig_velocity := Vector2.ZERO
 var foot_pos := ENTRY + Vector2(-66, 0)
 var foot_velocity := Vector2.ZERO
 var facing := 1
@@ -26,6 +27,15 @@ var health := 100.0
 var hull := 100.0
 var jet := 1.4
 var camera_pos := ENTRY
+var camera_offset := Vector2.ZERO
+var camera_shake := 0.0
+var weapon_direction := Vector2.RIGHT
+var muzzle_flash := 0.0
+var hit_marker := 0.0
+var reduced_motion := false
+var map_open := false
+var survey: Dictionary = {}
+var last_survey_cell := Vector2i(-999, -999)
 var elapsed := 0.0
 var fire_cooldown := 0.0
 var hurt_cooldown := 0.0
@@ -57,6 +67,7 @@ func _ready() -> void:
 	terrain.generate()
 	_spawn_enemies()
 	loaded = saves.read()
+	last_save_ok = not saves.newer_version_found
 	world = WorldView.new()
 	world.game = self
 	add_child(world)
@@ -102,7 +113,7 @@ func _make_light(color: Color, energy: float, diameter: int) -> PointLight2D:
 func _setup_input() -> void:
 	var bindings := {"left": [KEY_A, KEY_LEFT], "right": [KEY_D, KEY_RIGHT],
 		"up": [KEY_W, KEY_UP], "down": [KEY_S, KEY_DOWN], "boost": [KEY_SPACE],
-		"interact": [KEY_E], "return": [KEY_R], "pause_game": [KEY_ESCAPE], "fire": [KEY_F]}
+		"interact": [KEY_E], "return": [KEY_R], "pause_game": [KEY_ESCAPE], "fire": [KEY_F], "survey_map": [KEY_TAB, KEY_M]}
 	for action in bindings:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
@@ -123,9 +134,14 @@ func _input(event: InputEvent) -> void:
 		interact()
 	if event.is_action_pressed("return") and not event.is_echo():
 		return_to_colony()
+	if event.is_action_pressed("survey_map") and not event.is_echo():
+		toggle_map()
 	if event.is_action_pressed("pause_game") and not event.is_echo():
 		if mode == "mine":
-			paused = not paused
+			if map_open:
+				map_open = false
+			else:
+				paused = not paused
 			clear_controls()
 			save_game()
 
@@ -135,13 +151,25 @@ func clear_controls() -> void:
 	touch_boost = false
 	touch_fire = false
 	mouse_fire = false
+	rig_velocity = Vector2.ZERO
+	camera_offset = Vector2.ZERO
+	for action in ["left", "right", "up", "down", "boost", "fire"]:
+		Input.action_release(action)
 	if hud != null:
 		hud.clear_touches()
+
+func toggle_map() -> void:
+	if mode != "mine" or paused:
+		return
+	map_open = not map_open
+	clear_controls()
+	save_game()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		clear_controls()
 		if mode == "mine":
+			map_open = false
 			paused = true
 			save_game()
 	if what == NOTIFICATION_WM_CLOSE_REQUEST and mode != "title":
@@ -158,6 +186,18 @@ func start_game() -> void:
 		health = clampf(float(state.get("health", 100)), 1, max_health())
 		hull = clampf(float(state.get("hull", 100)), 1, 100)
 		mode = "colony" if state.get("mode", "mine") == "colony" else "mine"
+		var settings: Variant = loaded.get("settings", {})
+		if settings is Dictionary:
+			sounds.muted = settings.get("muted") is bool and settings.muted
+			reduced_motion = settings.get("reduced_motion") is bool and settings.reduced_motion
+			hud.controls_selected = settings.get("manual_controls") is bool and settings.manual_controls
+			if hud.controls_selected and settings.get("touch_controls") is bool:
+				hud.show_touch = settings.touch_controls
+		var stored_survey: Variant = loaded.get("survey", {})
+		if stored_survey is Dictionary:
+			for key in stored_survey:
+				if str(key).is_valid_int() and int(key) >= 0 and int(key) < Terrain.WIDTH * Terrain.HEIGHT:
+					survey[str(key)] = true
 		if terrain.blocked(rig_pos, RIG_HALF):
 			rig_pos = ENTRY
 		if terrain.blocked(foot_pos, FOOT_HALF):
@@ -174,11 +214,14 @@ func start_game() -> void:
 		mode = "mine"
 		notify("Hold a direction to drill. Mine copper below the lift.")
 	camera_pos = rig_pos if mounted else foot_pos
+	reveal_area()
 	clear_controls()
 	save_game()
 
 func _read_vector(value: Variant, fallback: Vector2) -> Vector2:
 	if value is Array and value.size() == 2:
+		if not (value[0] is float or value[0] is int) or not (value[1] is float or value[1] is int):
+			return fallback
 		var point := Vector2(float(value[0]), float(value[1]))
 		if point.is_finite() and point.x >= 0 and point.y >= 0 and point.x < Terrain.WIDTH * 32 and point.y < Terrain.HEIGHT * 32:
 			return point
@@ -194,9 +237,17 @@ func _spawn_enemies() -> void:
 
 func _physics_process(delta: float) -> void:
 	var dt := minf(delta, 0.05)
+	if mode == "mine" and get_viewport_rect().size.y > get_viewport_rect().size.x and not paused:
+		paused = true
+		map_open = false
+		clear_controls()
+		save_game()
 	elapsed += dt
 	toast_time = maxf(0, toast_time - dt)
-	if mode == "mine" and not paused:
+	muzzle_flash = maxf(0, muzzle_flash - dt)
+	hit_marker = maxf(0, hit_marker - dt)
+	camera_shake = move_toward(camera_shake, 0, dt * 18)
+	if mode == "mine" and not paused and not map_open:
 		_step_player(dt)
 		_step_enemies(dt)
 		_step_bullets(dt)
@@ -204,7 +255,11 @@ func _physics_process(delta: float) -> void:
 		fire_cooldown = maxf(0, fire_cooldown - dt)
 		hurt_cooldown = maxf(0, hurt_cooldown - dt)
 		var target := rig_pos if mounted else foot_pos
-		camera_pos = camera_pos.lerp(target, 1.0 - exp(-8.0 * dt))
+		var lead := rig_velocity * 0.18 if mounted else weapon_direction * 38
+		if reduced_motion:
+			lead = Vector2.ZERO
+		camera_pos = camera_pos.lerp(target + lead, 1.0 - exp(-8.0 * dt))
+		reveal_area()
 		progress.deepest = maxi(progress.deepest, depth())
 		save_clock += dt
 		if save_clock >= 4.0:
@@ -213,7 +268,9 @@ func _physics_process(delta: float) -> void:
 		if health <= 0 or hull <= 0:
 			recover()
 	if world != null:
-		world.position = (get_viewport_rect().size * 0.5 - camera_pos).round()
+		sounds.set_activity(mode == "mine" and not paused and not map_open, mounted, drilling, rig_velocity.length())
+		camera_offset = Vector2.ZERO if reduced_motion or paused or map_open else Vector2(sin(elapsed * 71), cos(elapsed * 83)) * camera_shake
+		world.position = (get_viewport_rect().size * 0.5 - camera_pos + camera_offset).round()
 		world_light.position = rig_pos if mounted else foot_pos
 		world.queue_redraw()
 		hud.queue_redraw()
@@ -222,8 +279,13 @@ func _step_player(dt: float) -> void:
 	var move := Input.get_vector("left", "right", "up", "down")
 	if touch_move.length() > 0.12:
 		move = touch_move.limit_length()
+	if move.length() < 0.15:
+		move = Vector2.ZERO
 	drilling = false
 	if mounted:
+		var desired := move * 185
+		# Reach cruising speed in 120ms; brake faster so precision steering stays responsive.
+		rig_velocity = rig_velocity.move_toward(desired, (1550.0 if move != Vector2.ZERO else 2200.0) * dt)
 		if move.length() > 0.15:
 			if absf(move.x) > absf(move.y):
 				drill_direction = Vector2(signf(move.x), 0)
@@ -235,6 +297,7 @@ func _step_player(dt: float) -> void:
 			if drilling:
 				var broken := terrain.drill(rig_pos, RIG_HALF, drill_direction, dt * (1 + progress.drill_level * 0.45), progress.capacity() - progress.cargo_count())
 				for hit in broken:
+					camera_shake = maxf(camera_shake, 1.8)
 					var color := Color("e9a95a") if hit.material == Terrain.Tile.COPPER else Color("60dbed")
 					if hit.material == Terrain.Tile.ROCK:
 						color = Color("827e78")
@@ -247,8 +310,12 @@ func _step_player(dt: float) -> void:
 				if drill_sound_clock <= 0:
 					sounds.play_tone(65, 0.06, 0.13, true)
 					drill_sound_clock = 0.10
-			rig_pos = terrain.move_body(rig_pos, RIG_HALF, move * 185 * dt)
+		var previous := rig_pos
+		rig_pos = terrain.move_body(rig_pos, RIG_HALF, rig_velocity * dt)
+		# Track actual travel, so a blocked tread cannot keep accelerating or animating.
+		rig_velocity = (rig_pos - previous) / maxf(dt, 0.001)
 		return
+	rig_velocity = Vector2.ZERO
 	var grounded := terrain.blocked(foot_pos + Vector2(0, 2), FOOT_HALF)
 	if grounded:
 		jet = minf(1.4, jet + dt * 2.4)
@@ -261,6 +328,7 @@ func _step_player(dt: float) -> void:
 			burst(foot_pos + Vector2(0, 17), Color("76d8eb"), 1)
 	if absf(move.x) > 0.1:
 		facing = int(signf(move.x))
+	weapon_direction = aim_direction()
 	var previous := foot_pos
 	foot_pos = terrain.move_body(foot_pos, FOOT_HALF, foot_velocity * dt)
 	if is_equal_approx(previous.y, foot_pos.y):
@@ -275,7 +343,7 @@ func _step_player(dt: float) -> void:
 		save_game()
 
 func interact() -> void:
-	if mode != "mine" or paused:
+	if mode != "mine" or paused or map_open:
 		return
 	if mounted:
 		for offset in [Vector2(-66, 0), Vector2(66, 0), Vector2(0, -48)]:
@@ -283,6 +351,7 @@ func interact() -> void:
 				foot_pos = rig_pos + offset
 				foot_velocity = Vector2.ZERO
 				mounted = false
+				rig_velocity = Vector2.ZERO
 				jet = 1.4
 				notify("On foot. Aim + fire • Space to boost • E to board.")
 				save_game()
@@ -303,12 +372,16 @@ func _has_landing(point: Vector2) -> bool:
 			return true
 	return false
 
-func shoot() -> void:
+func aim_direction() -> Vector2:
 	var direction := Vector2(facing, 0)
 	if touch_aim.length() > 0.15:
 		direction = touch_aim.normalized()
 	elif mouse_aim:
-		direction = (aim_point + camera_pos - get_viewport_rect().size * 0.5 - foot_pos).normalized()
+		direction = (aim_point + camera_pos - camera_offset - get_viewport_rect().size * 0.5 - foot_pos).normalized()
+	return direction if direction.length_squared() > 0.1 else Vector2(facing, 0)
+
+func shoot() -> void:
+	var direction := aim_direction()
 	# Mild aim assistance only within the intended aim cone and with line of sight.
 	var best := 0.92
 	for enemy in enemies:
@@ -317,6 +390,9 @@ func shoot() -> void:
 		if toward.length() < 460 and alignment > best and _clear_line(foot_pos, enemy.pos):
 			best = alignment
 			direction = toward.normalized()
+	weapon_direction = direction
+	muzzle_flash = 0.065
+	camera_shake = maxf(camera_shake, 0.9)
 	bullets.append({"pos": foot_pos + direction * 23, "vel": direction * 720, "life": 0.9, "enemy": false})
 	facing = 1 if direction.x >= 0 else -1
 	fire_cooldown = 0.17
@@ -372,6 +448,7 @@ func _take_hit(amount: float) -> void:
 	else:
 		health -= amount
 	hurt_cooldown = 0.65
+	camera_shake = 5.0
 	sounds.play_tone(80, 0.16, 0.18, true)
 
 func _step_bullets(dt: float) -> void:
@@ -384,6 +461,7 @@ func _step_bullets(dt: float) -> void:
 		for substep in steps:
 			bullet.pos += distance / steps
 			if terrain.solid(bullet.pos):
+				burst(bullet.pos, Color("c2b392"), 3)
 				hit = true
 				break
 			if bullet.enemy:
@@ -395,6 +473,7 @@ func _step_bullets(dt: float) -> void:
 					if bullet.pos.distance_to(enemy.pos) < 23:
 						enemy.hp -= 40 if progress.workshop else 20
 						enemy.flash = 0.10
+						hit_marker = 0.12
 						burst(bullet.pos, Color("e4a1a5"), 4)
 						hit = true
 						break
@@ -419,6 +498,21 @@ func _step_particles(dt: float) -> void:
 func depth() -> int:
 	return maxi(0, int(((rig_pos.y if mounted else foot_pos.y) - ENTRY.y) / 4))
 
+func reveal_area() -> void:
+	var cell := terrain.world_cell(rig_pos if mounted else foot_pos)
+	if cell == last_survey_cell:
+		return
+	last_survey_cell = cell
+	# Short-range ground survey. Hidden sectors stay unknown until actually approached.
+	for y in range(maxi(0, cell.y - 7), mini(Terrain.HEIGHT, cell.y + 8)):
+		for x in range(maxi(0, cell.x - 7), mini(Terrain.WIDTH, cell.x + 8)):
+			if Vector2i(x, y).distance_squared_to(cell) <= 49:
+				survey[str(y * Terrain.WIDTH + x)] = true
+
+func surveyed(point: Vector2) -> bool:
+	var cell := terrain.world_cell(point)
+	return survey.has(str(cell.y * Terrain.WIDTH + cell.x))
+
 func max_health() -> float:
 	return 125.0 if progress.quarters else 100.0
 
@@ -426,7 +520,7 @@ func near_lift() -> bool:
 	return rig_pos.distance_to(ENTRY) < 240 and rig_pos.y < 355
 
 func return_to_colony() -> void:
-	if mode != "mine" or paused:
+	if mode != "mine" or paused or map_open:
 		return
 	if not mounted:
 		notify("Board your rig before returning to the colony.")
@@ -445,11 +539,14 @@ func return_to_colony() -> void:
 
 func depart() -> void:
 	mode = "mine"
+	map_open = false
 	mounted = true
 	rig_pos = ENTRY
 	health = max_health()
 	hull = 100
 	camera_pos = ENTRY
+	last_survey_cell = Vector2i(-999, -999)
+	reveal_area()
 	clear_controls()
 	notify("Expedition resumed. Your tunnels remain open.")
 	save_game()
@@ -460,6 +557,8 @@ func build_room(kind: String) -> void:
 	save_game()
 
 func recover() -> void:
+	map_open = false
+	clear_controls()
 	progress.cargo_copper = floori(progress.cargo_copper * 0.5)
 	progress.cargo_crystal = floori(progress.cargo_crystal * 0.5)
 	rig_pos = ENTRY
@@ -483,6 +582,8 @@ func save_game() -> bool:
 	for enemy in enemies:
 		stored_enemies.append({"pos": [enemy.pos.x, enemy.pos.y], "type": enemy.type, "hp": enemy.hp})
 	last_save_ok = saves.write({"progress": progress.snapshot(), "terrain": terrain.export_state(),
+		"settings": {"muted": sounds.muted, "reduced_motion": reduced_motion, "touch_controls": hud.show_touch, "manual_controls": hud.controls_selected},
+		"survey": survey.duplicate(),
 		"player": {"rig": [rig_pos.x, rig_pos.y], "foot": [foot_pos.x, foot_pos.y],
 			"mounted": mounted, "health": health, "hull": hull, "mode": mode}, "enemies": stored_enemies})
 	return last_save_ok

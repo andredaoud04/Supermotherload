@@ -1,6 +1,9 @@
 class_name ColonyProgress
 extends RefCounted
 
+# JSON numbers are doubles. Keep balances exact and leave ample room for rewards.
+const MAX_TOTAL := 1_000_000_000
+
 var copper := 0
 var crystal := 0
 var credits := 0
@@ -77,14 +80,23 @@ func snapshot() -> Dictionary:
 		"regulator": regulator, "expeditions": expeditions, "deepest": deepest}
 
 func restore(data: Dictionary) -> void:
-	copper = maxi(0, int(data.get("copper", 0)))
-	crystal = maxi(0, int(data.get("crystal", 0)))
-	credits = maxi(0, int(data.get("credits", 0)))
-	drill_level = clampi(int(data.get("drill_level", 0)), 0, 3)
-	cargo_copper = clampi(int(data.get("cargo_copper", 0)), 0, capacity())
-	cargo_crystal = clampi(int(data.get("cargo_crystal", 0)), 0, capacity() - cargo_copper)
-	workshop = bool(data.get("workshop", false))
-	quarters = bool(data.get("quarters", false))
-	regulator = bool(data.get("regulator", false))
-	expeditions = maxi(0, int(data.get("expeditions", 0)))
-	deepest = maxi(0, int(data.get("deepest", 0)))
+	copper = _safe_count(data.get("copper"), MAX_TOTAL)
+	crystal = _safe_count(data.get("crystal"), MAX_TOTAL)
+	credits = _safe_count(data.get("credits"), MAX_TOTAL)
+	drill_level = _safe_count(data.get("drill_level"), 3)
+	cargo_copper = _safe_count(data.get("cargo_copper"), capacity())
+	cargo_crystal = _safe_count(data.get("cargo_crystal"), capacity() - cargo_copper)
+	workshop = data.get("workshop") is bool and data.workshop
+	quarters = data.get("quarters") is bool and data.quarters
+	regulator = data.get("regulator") is bool and data.regulator
+	expeditions = _safe_count(data.get("expeditions"), MAX_TOTAL)
+	deepest = _safe_count(data.get("deepest"), MAX_TOTAL)
+
+func _safe_count(value: Variant, maximum: int) -> int:
+	if not (value is int or value is float):
+		return 0
+	var number := float(value)
+	if not is_finite(number) or number != floor(number):
+		return 0
+	# Clamp before conversion: converting an enormous double to int can overflow.
+	return int(clampf(number, 0.0, float(maximum)))
