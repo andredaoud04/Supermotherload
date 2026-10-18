@@ -103,7 +103,7 @@ func _valid_game_shape(data: Dictionary) -> bool:
 	for key in ["copper", "crystal", "credits", "cargo_copper", "cargo_crystal", "drill_level", "expeditions", "deepest"]:
 		if progress.has(key) and not _finite_number(progress[key]):
 			return false
-	for key in ["workshop", "quarters", "regulator"]:
+	for key in ["workshop", "quarters", "regulator", "archive", "research"]:
 		if progress.has(key) and not progress[key] is bool:
 			return false
 	var terrain: Dictionary = data.terrain

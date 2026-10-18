@@ -155,6 +155,8 @@ func run() -> void:
 	var valid := {"copper": 23, "crystal": 7, "credits": 98, "cargo_copper": 4, "cargo_crystal": 2,
 		"drill_level": 2, "workshop": true, "quarters": true, "regulator": true, "expeditions": 11, "deepest": 233}
 	progress.restore(JSON.parse_string(JSON.stringify(valid)))
+	valid["archive"] = false
+	valid["research"] = false
 	check(progress.snapshot() == valid, "existing valid progression restores without changes")
 	print("PERSISTENCE TESTS: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)

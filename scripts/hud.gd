@@ -93,7 +93,7 @@ func _draw_mine(screen: Vector2) -> void:
 	panel(Rect2(199, 16, 270, 75))
 	label_at(Vector2(213, 39), "DR-07  /  " + ("DRILL ONLINE" if game.mounted else "EXPLORER ON FOOT"), 12, ink)
 	var hp: float = game.hull if game.mounted else game.health
-	var maximum: float = 100 if game.mounted else game.max_health()
+	var maximum: float = game.max_hull() if game.mounted else game.max_health()
 	draw_rect(Rect2(214, 56, 171, 7), Color("35404a"))
 	draw_rect(Rect2(214, 56, 171 * clampf(hp / maximum, 0, 1), 7), cyan if hp > 30 else Color("ed7b75"))
 	label_at(Vector2(397, 65), "%d%%" % int(hp / maximum * 100), 13, ink)
@@ -103,14 +103,10 @@ func _draw_mine(screen: Vector2) -> void:
 	label_at(Vector2(right + 13, 70), "%02d / %02d" % [game.progress.cargo_count(), game.progress.capacity()], 23, amber)
 	button("map", Rect2(screen.x - 179, 16, 75, 75), "MAP")
 	button("pause", Rect2(screen.x - 93, 16, 75, 75), "II")
-	var objective := "Mine copper > upgrade your drill bay" if game.progress.drill_level == 0 else "Find the regulator in the old pumping station"
-	if game.progress.regulator:
-		objective = "Return with the regulator > construct your workshop" if not game.progress.workshop else "Explore deeper > find blue crystals for living quarters"
-	if game.progress.quarters:
-		objective = "Colony established. Explore the depths and upgrade your drill bay."
+	var objective: String = game.progress.objective()
 	if not show_touch:
 		panel(Rect2(18, screen.y - 63, screen.x - 36, 45))
-		label_at(Vector2(32, screen.y - 35), objective, 14, ink)
+		fit_label(Vector2(32, screen.y - 35), objective, screen.x - 64, 14, ink)
 		button("interact", Rect2(screen.x - 324, screen.y - 120, 152, 43), "E  DISMOUNT" if game.mounted else "E  BOARD")
 		button("return", Rect2(screen.x - 161, screen.y - 120, 143, 43), "R  COLONY", game.near_lift() and game.mounted)
 		label_at(Vector2(23, screen.y - 82), "WASD move  ·  E board  ·  Space boost  ·  Tab map", 12, muted)
@@ -119,7 +115,7 @@ func _draw_mine(screen: Vector2) -> void:
 	if not game.mounted:
 		var direction: Vector2 = game.rig_pos - game.foot_pos
 		label_at(Vector2(25, 177), "RIG  %dm  %s" % [int(direction.length() / 4), ">" if direction.x > 0 else "<"], 12, amber)
-		label_at(Vector2(25, 197), "BOOST  %d%%" % int(game.jet / 1.4 * 100), 12, cyan)
+		label_at(Vector2(25, 197), "BOOST  %d%%" % int(game.jet / game.max_jet() * 100), 12, cyan)
 		if not show_touch:
 			var reticle: Vector2 = game.foot_pos - game.camera_pos + game.camera_offset + screen * 0.5 + game.weapon_direction * 95
 			var tint := Color("fff1ba") if game.hit_marker > 0 else Color(0.83, 0.91, 0.87, 0.7)
@@ -169,6 +165,8 @@ func _draw_map(screen: Vector2) -> void:
 	_map_marker(origin, scale, game.ENTRY, "LIFT", amber)
 	if game.surveyed(game.RELIC):
 		_map_marker(origin, scale, game.RELIC, "OLD STATION", cyan)
+	if game.surveyed(game.ARCHIVE):
+		_map_marker(origin, scale, game.ARCHIVE, "ARCHIVE", Color("c9a2ef"))
 	var player: Vector2 = game.rig_pos if game.mounted else game.foot_pos
 	var p := origin + player / MineTerrain.TILE * scale
 	if not game.mounted:
@@ -182,7 +180,7 @@ func _draw_map(screen: Vector2) -> void:
 		var labels := ["Copper", "Crystal", "You", "Surveyed rock"]
 		draw_rect(Rect2(30, 158 + i * 32, 8, 8), colors[i])
 		label_at(Vector2(47, 167 + i * 32), labels[i], 14, ink)
-	label_at(Vector2(30, screen.y - 37), "TAB / M", 13, amber)
+	fit_label(Vector2(30, screen.y - 16), game.progress.objective(), screen.x - 60, 16, amber)
 	var right := origin.x + map_size.x + 24
 	label_at(Vector2(right, 137), "RETURN ROUTE", 13, amber)
 	label_at(Vector2(right, 166), "Follow your tunnels", 13, ink)
@@ -228,18 +226,16 @@ func _draw_colony(screen: Vector2) -> void:
 	_room(Rect2(30 + offset, 169, 397, 128), "DRILL BAY", "LEVEL %d  ·  CARGO %d" % [game.progress.drill_level, game.progress.capacity()], true, 0)
 	_room(Rect2(529 + offset, 169, 397, 128), "WORKSHOP", "HIGH-IMPACT ROUNDS" if game.progress.workshop else "RECOVER THE REGULATOR", game.progress.workshop, 1)
 	_room(Rect2(30 + offset, 316, 397, 128), "LIVING QUARTERS", "+25 MAXIMUM HEALTH" if game.progress.quarters else "ROOM FOR A TOMORROW", game.progress.quarters, 2)
-	panel(Rect2(529 + offset, 316, 397, 128), Color("111f29"))
-	label_at(Vector2(550 + offset, 345), "NEXT EXPEDITION", 13, cyan)
-	label_at(Vector2(550 + offset, 374), "Amber seams supply your drill bay.", 14, ink)
-	label_at(Vector2(550 + offset, 400), "The old station holds a lost regulator.", 14, muted)
-	label_at(Vector2(550 + offset, 426), "Blue crystals wait below 200 meters.", 14, muted)
+	_room(Rect2(529 + offset, 316, 397, 128), "RESEARCH LAB", "HULL 150 / BOOST +50%" if game.progress.research else ("ARCHIVE RECOVERED" if game.progress.archive else "FIND THE ARCHIVE AT 350m"), game.progress.research, 3)
 	button("drill", Rect2(45 + offset, 251, 225, 34), "UPGRADE  ·  %d COPPER" % (10 + game.progress.drill_level * 10) if game.progress.drill_level < 3 else "FULLY UPGRADED")
 	button("workshop", Rect2(545 + offset, 251, 260, 34), "OPERATIONAL" if game.progress.workshop else "BUILD  ·  8 COPPER + REGULATOR")
 	button("quarters", Rect2(45 + offset, 398, 268, 34), "INHABITED" if game.progress.quarters else "BUILD  ·  12 COPPER + 3 CRYSTAL")
+	button("research", Rect2(545 + offset, 398, 280, 34), "OPERATIONAL" if game.progress.research else "BUILD / 8 CRYSTALS + 120 CREDITS")
 	# Whole rooms are tap targets, including their labels and decoration.
 	buttons["drill"] = Rect2(30 + offset, 169, 397, 128)
 	buttons["workshop"] = Rect2(529 + offset, 169, 397, 128)
 	buttons["quarters"] = Rect2(30 + offset, 316, 397, 128)
+	buttons["research"] = Rect2(529 + offset, 316, 397, 128)
 	button("depart", Rect2(screen.x - 292, screen.y - 69, 264, 47), "DESCEND TO THE MINE   v", true)
 	label_at(Vector2(30 + offset, screen.y - 39), "Haul banked. Tunnels preserved. Equipment restored.", 13, muted)
 
@@ -331,7 +327,7 @@ func _click(point: Vector2) -> bool:
 			"interact": game.interact()
 			"return": game.return_to_colony()
 			"depart": game.depart()
-			"drill", "workshop", "quarters": game.build_room(id)
+			"drill", "workshop", "quarters", "research": game.build_room(id)
 			"map": game.toggle_map()
 			"mute":
 				game.sounds.muted = not game.sounds.muted

@@ -13,6 +13,8 @@ var drill_level := 0
 var workshop := false
 var quarters := false
 var regulator := false
+var archive := false
+var research := false
 var expeditions := 0
 var deepest := 0
 
@@ -71,13 +73,41 @@ func purchase(kind: String) -> String:
 			crystal -= 3
 			quarters = true
 			return "Living quarters constructed. Maximum health increased to 125."
+		"research":
+			if research:
+				return "Research lab operational. Hull 150. Boost duration +50%."
+			if not workshop or not quarters:
+				return "Build the workshop and living quarters before opening the research lab."
+			if not archive:
+				return "Recover the archive on foot in the fungal chamber, around 350m deep."
+			if crystal < 8 or credits < 120:
+				return "Research lab requires 8 crystals and 120 credits from banked hauls."
+			crystal -= 8
+			credits -= 120
+			research = true
+			return "Research lab online. Reinforced hull: 150. Explorer boost: +50%."
 	return "Unknown project."
+
+func objective() -> String:
+	if drill_level == 0:
+		return "Mine copper > upgrade your drill bay"
+	if not regulator:
+		return "Explore the old pumping station > recover its regulator on foot"
+	if not workshop:
+		return "Return with the regulator > construct your workshop"
+	if not quarters:
+		return "Find blue crystals below 200m > build living quarters"
+	if not archive:
+		return "Descend to the fungal chamber at 350m > recover the archive on foot"
+	if not research:
+		return "Bring home 8 crystals and 120 credits > open the research lab"
+	return "Research complete. Reinforced hull and extended boost equipped."
 
 func snapshot() -> Dictionary:
 	return {"copper": copper, "crystal": crystal, "credits": credits,
 		"cargo_copper": cargo_copper, "cargo_crystal": cargo_crystal,
 		"drill_level": drill_level, "workshop": workshop, "quarters": quarters,
-		"regulator": regulator, "expeditions": expeditions, "deepest": deepest}
+		"regulator": regulator, "archive": archive, "research": research, "expeditions": expeditions, "deepest": deepest}
 
 func restore(data: Dictionary) -> void:
 	copper = _safe_count(data.get("copper"), MAX_TOTAL)
@@ -89,6 +119,8 @@ func restore(data: Dictionary) -> void:
 	workshop = data.get("workshop") is bool and data.workshop
 	quarters = data.get("quarters") is bool and data.quarters
 	regulator = data.get("regulator") is bool and data.regulator
+	archive = data.get("archive") is bool and data.archive
+	research = data.get("research") is bool and data.research
 	expeditions = _safe_count(data.get("expeditions"), MAX_TOTAL)
 	deepest = _safe_count(data.get("deepest"), MAX_TOTAL)
 

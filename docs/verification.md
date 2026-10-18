@@ -1,5 +1,13 @@
 # Verification record
 
+## Deep archive and research — October 18, 2026
+
+- Full Godot build passed **154 checks, zero failures** and the release web export, including 20 new colony checks.
+- Research tests cover facility/discovery requirements, insufficient balances without partial charges, exact payment, duplicate construction, underground purchase refusal, immediate equipment effects, recovery and full-save restoration of hull above 100.
+- Archive tests exercise mounted refusal, on-foot collection with immediate save, one-time collection, and persistence through emergency recovery. Legacy version-one saves keep both new flags locked.
+- Survey map now exposes the current progression objective in both touch and keyboard modes. The deep terminal has a visible pickup and a recovered state.
+- Browser loaded the updated export and restored the existing test save. End-to-end manual archive retrieval and physical-device checks remain outstanding; automated gameplay checks directly exercise the recovery and research path.
+
 ## Controls, presentation and reliability update — October 18, 2026
 
 - Full `node tools/build.mjs` pipeline passed: **134 checks, zero failures** (33 gameplay, 39 persistence, 26 controls/navigation, 36 networking), followed by the release web export. The build now stops on script errors and times out hung subprocesses.

@@ -10,6 +10,7 @@ const RIG_HALF := Vector2(42, 18)
 const FOOT_HALF := Vector2(10, 18)
 const ENTRY := Vector2(448, 272)
 const RELIC := Vector2(1040, 744)
+const ARCHIVE := Vector2(1100, 1670)
 
 var terrain := Terrain.new()
 var progress := Progress.new()
@@ -184,7 +185,7 @@ func start_game() -> void:
 		foot_pos = _read_vector(state.get("foot", []), ENTRY + Vector2(-66, 0))
 		mounted = bool(state.get("mounted", true))
 		health = clampf(float(state.get("health", 100)), 1, max_health())
-		hull = clampf(float(state.get("hull", 100)), 1, 100)
+		hull = clampf(float(state.get("hull", 100)), 1, max_hull())
 		mode = "colony" if state.get("mode", "mine") == "colony" else "mine"
 		var settings: Variant = loaded.get("settings", {})
 		if settings is Dictionary:
@@ -318,12 +319,12 @@ func _step_player(dt: float) -> void:
 	rig_velocity = Vector2.ZERO
 	var grounded := terrain.blocked(foot_pos + Vector2(0, 2), FOOT_HALF)
 	if grounded:
-		jet = minf(1.4, jet + dt * 2.4)
+		jet = minf(max_jet(), jet + dt * 2.4)
 	foot_velocity.x = move.x * 165
 	foot_velocity.y = minf(430, foot_velocity.y + 690 * dt)
 	if (Input.is_action_pressed("boost") or touch_boost or move.y < -0.6) and jet > 0:
 		foot_velocity.y = -195
-		jet -= dt
+		jet = maxf(0, jet - dt)
 		if int(elapsed * 30) % 2 == 0:
 			burst(foot_pos + Vector2(0, 17), Color("76d8eb"), 1)
 	if absf(move.x) > 0.1:
@@ -341,6 +342,12 @@ func _step_player(dt: float) -> void:
 		burst(RELIC, Color("8feee0"), 26)
 		sounds.play_tone(880, 0.20, 0.2)
 		save_game()
+	if not progress.archive and foot_pos.distance_to(ARCHIVE) < 45 and _clear_line(foot_pos, ARCHIVE):
+		progress.archive = true
+		notify("ARCHIVE RECOVERED — lost engineering plans unlocked. Bring them home.")
+		burst(ARCHIVE, Color("c9a2ef"), 26)
+		sounds.play_tone(1100, 0.28, 0.2)
+		save_game()
 
 func interact() -> void:
 	if mode != "mine" or paused or map_open:
@@ -352,7 +359,7 @@ func interact() -> void:
 				foot_velocity = Vector2.ZERO
 				mounted = false
 				rig_velocity = Vector2.ZERO
-				jet = 1.4
+				jet = max_jet()
 				notify("On foot. Aim + fire • Space to boost • E to board.")
 				save_game()
 				return
@@ -516,6 +523,12 @@ func surveyed(point: Vector2) -> bool:
 func max_health() -> float:
 	return 125.0 if progress.quarters else 100.0
 
+func max_hull() -> float:
+	return 150.0 if progress.research else 100.0
+
+func max_jet() -> float:
+	return 2.1 if progress.research else 1.4
+
 func near_lift() -> bool:
 	return rig_pos.distance_to(ENTRY) < 240 and rig_pos.y < 355
 
@@ -530,7 +543,7 @@ func return_to_colony() -> void:
 		return
 	var earned := progress.deposit()
 	health = max_health()
-	hull = 100
+	hull = max_hull()
 	mode = "colony"
 	clear_controls()
 	notify("Haul banked. +%d credits. Rig repaired and supplies restored." % earned)
@@ -543,7 +556,8 @@ func depart() -> void:
 	mounted = true
 	rig_pos = ENTRY
 	health = max_health()
-	hull = 100
+	hull = max_hull()
+	jet = max_jet()
 	camera_pos = ENTRY
 	last_survey_cell = Vector2i(-999, -999)
 	reveal_area()
@@ -552,8 +566,12 @@ func depart() -> void:
 	save_game()
 
 func build_room(kind: String) -> void:
+	if mode != "colony":
+		return
 	notify(progress.purchase(kind))
 	health = minf(max_health(), health + 25)
+	hull = max_hull()
+	jet = max_jet()
 	save_game()
 
 func recover() -> void:
@@ -565,7 +583,8 @@ func recover() -> void:
 	foot_pos = ENTRY + Vector2(-66, 0)
 	mounted = true
 	health = max_health()
-	hull = 100
+	hull = max_hull()
+	jet = max_jet()
 	camera_pos = ENTRY
 	bullets.clear()
 	notify("Emergency recovery. Half your cargo was lost; colony progress is safe.")

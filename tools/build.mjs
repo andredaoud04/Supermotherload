@@ -58,7 +58,7 @@ if (!await exists('.tools/templates/web_nothreads_release.zip')) {
 }
 await writeFile('.tools/godot/_sc_', '');
 run(executable, ['--headless', '--path', root, '--editor', '--import', '--quit', '--log-file', path.join(root, '.tools/import.log')]);
-for (const suite of ['smoke', 'persistence', 'controls', 'network_smoke']) {
+  for (const suite of ['smoke', 'persistence', 'controls', 'colony', 'network_smoke']) {
   run(executable, ['--headless', '--path', root, '--script', `res://tests/${suite}.gd`, '--log-file', path.join(root, `.tools/${suite}.log`)]);
 }
 run(executable, ['--headless', '--path', root, '--export-release', 'Web', 'build/web/index.html', '--log-file', path.join(root, '.tools/export.log')]);

@@ -311,6 +311,25 @@ func _draw_landmarks() -> void:
 		for j in 5:
 			draw_line(p + Vector2(-3, -35), p + Vector2(-20 + j * 10, -40), Color("9273ba"), 1)
 
+	var archive: Vector2 = game.ARCHIVE
+	if view.grow(110).has_point(archive):
+		var active: bool = not game.progress.archive
+		var light := Color("c9a2ef") if active else Color("52636b")
+		_shadow(archive + Vector2(0, 26), Vector2(56, 10))
+		draw_rect(Rect2(archive + Vector2(-23, 12), Vector2(46, 14)), Color("35434c"))
+		draw_rect(Rect2(archive + Vector2(-18, -7), Vector2(36, 22)), Color("69717a"))
+		draw_rect(Rect2(archive + Vector2(-14, -4), Vector2(28, 15)), Color("152632"))
+		for i in 3:
+			draw_line(archive + Vector2(-10, i * 4), archive + Vector2(7 - i * 3, i * 4), light, 1)
+		if active:
+			_halo(archive + Vector2(0, -12), Vector2(100, 100), Color(0.64, 0.35, 0.86, 0.25))
+			var bob := 0.0 if game.reduced_motion else sin(game.elapsed * 2.5) * 3
+			var core := archive + Vector2(0, -23 + bob)
+			draw_colored_polygon(PackedVector2Array([core + Vector2(0, -10), core + Vector2(7, 0), core + Vector2(0, 10), core + Vector2(-7, 0)]), light)
+			draw_string(font, archive + Vector2(-51, -48), "ARCHIVE / ON FOOT", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, light)
+		else:
+			draw_string(font, archive + Vector2(-39, -22), "DATA RECOVERED", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, light)
+
 func _draw_rig(p: Vector2) -> void:
 	var bounce: float = sin(game.elapsed * 45) * 0.7 if game.drilling else 0.0
 	if rig_moving:
