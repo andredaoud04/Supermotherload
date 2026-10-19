@@ -1,4 +1,5 @@
 extends Control
+const ColonyView = preload("res://scripts/colony_view.gd")
 ## Screen-space UI and real multi-touch controls. No DOM overlay is required.
 var game: Node2D
 var font: Font
@@ -223,43 +224,28 @@ func _draw_colony(screen: Vector2) -> void:
 	for y in range(180, 461, 32):
 		draw_line(Vector2(454 + offset, y), Vector2(500 + offset, y), Color("495961"), 2)
 	draw_rect(Rect2(459 + offset, 217, 35, 42), Color("b89450"))
-	_room(Rect2(30 + offset, 169, 397, 128), "DRILL BAY", "LEVEL %d  ·  CARGO %d" % [game.progress.drill_level, game.progress.capacity()], true, 0)
-	_room(Rect2(529 + offset, 169, 397, 128), "WORKSHOP", "HIGH-IMPACT ROUNDS" if game.progress.workshop else "RECOVER THE REGULATOR", game.progress.workshop, 1)
-	_room(Rect2(30 + offset, 316, 397, 128), "LIVING QUARTERS", "+25 MAXIMUM HEALTH" if game.progress.quarters else "ROOM FOR A TOMORROW", game.progress.quarters, 2)
-	_room(Rect2(529 + offset, 316, 397, 128), "RESEARCH LAB", "HULL 150 / BOOST +50%" if game.progress.research else ("ARCHIVE RECOVERED" if game.progress.archive else "FIND THE ARCHIVE AT 350m"), game.progress.research, 3)
+	_room(Rect2(30 + offset, 149, 397, 146), "DRILL BAY", "LEVEL %d  ·  CARGO %d" % [game.progress.drill_level, game.progress.capacity()], true, 0)
+	_room(Rect2(529 + offset, 149, 397, 146), "WORKSHOP", "HIGH-IMPACT ROUNDS" if game.progress.workshop else "RECOVER THE REGULATOR", game.progress.workshop, 1)
+	_room(Rect2(30 + offset, 312, 397, 146), "LIVING QUARTERS", "+25 MAXIMUM HEALTH" if game.progress.quarters else "ROOM FOR A TOMORROW", game.progress.quarters, 2)
+	_room(Rect2(529 + offset, 312, 397, 146), "RESEARCH LAB", "HULL 150 / BOOST +50%" if game.progress.research else ("ARCHIVE RECOVERED" if game.progress.archive else "FIND THE ARCHIVE AT 350m"), game.progress.research, 3)
 	button("drill", Rect2(45 + offset, 251, 225, 34), "UPGRADE  ·  %d COPPER" % (10 + game.progress.drill_level * 10) if game.progress.drill_level < 3 else "FULLY UPGRADED")
-	button("workshop", Rect2(545 + offset, 251, 260, 34), "OPERATIONAL" if game.progress.workshop else "BUILD  ·  8 COPPER + REGULATOR")
-	button("quarters", Rect2(45 + offset, 398, 268, 34), "INHABITED" if game.progress.quarters else "BUILD  ·  12 COPPER + 3 CRYSTAL")
-	button("research", Rect2(545 + offset, 398, 280, 34), "OPERATIONAL" if game.progress.research else "BUILD / 8 CRYSTALS + 120 CREDITS")
+	button("workshop", Rect2(545 + offset, 251, 350, 34), "OPERATIONAL" if game.progress.workshop else "BUILD  ·  8 COPPER + REGULATOR")
+	button("quarters", Rect2(45 + offset, 414, 350, 34), "INHABITED" if game.progress.quarters else "BUILD  ·  12 COPPER + 3 CRYSTAL")
+	button("research", Rect2(545 + offset, 414, 350, 34), "OPERATIONAL" if game.progress.research else "BUILD / 8 CRYSTALS + 120 CREDITS")
 	# Whole rooms are tap targets, including their labels and decoration.
-	buttons["drill"] = Rect2(30 + offset, 169, 397, 128)
-	buttons["workshop"] = Rect2(529 + offset, 169, 397, 128)
-	buttons["quarters"] = Rect2(30 + offset, 316, 397, 128)
-	buttons["research"] = Rect2(529 + offset, 316, 397, 128)
+	buttons["drill"] = Rect2(30 + offset, 149, 397, 146)
+	buttons["workshop"] = Rect2(529 + offset, 149, 397, 146)
+	buttons["quarters"] = Rect2(30 + offset, 312, 397, 146)
+	buttons["research"] = Rect2(529 + offset, 312, 397, 146)
 	button("depart", Rect2(screen.x - 292, screen.y - 69, 264, 47), "DESCEND TO THE MINE   v", true)
 	label_at(Vector2(30 + offset, screen.y - 39), "Haul banked. Tunnels preserved. Equipment restored.", 13, muted)
 
 func _room(rect: Rect2, title: String, subtitle: String, built: bool, kind: int) -> void:
 	panel(rect, Color("2d2a25") if built else Color("16232b"))
 	draw_rect(Rect2(rect.position, Vector2(rect.size.x, 4)), amber if built else Color("45545c"))
-	label_at(rect.position + Vector2(15, 28), title, 17, amber if built else muted)
-	label_at(rect.position + Vector2(15, 54), subtitle, 11, ink if built else muted)
-	if built:
-		var x := rect.end.x - 93
-		var y := rect.position.y + 46
-		for i in 3:
-			draw_rect(Rect2(x + i * 25, y, 18, 25), Color("5b6056"))
-			draw_rect(Rect2(x + i * 25 + 3, y + 3, 12, 4), amber if kind == 0 else cyan)
-		for i in 2:
-			var p := Vector2(x + 17 + i * 36, y + 53)
-			draw_rect(Rect2(p - Vector2(4, 14), Vector2(8, 13)), Color("c9a068"))
-			draw_rect(Rect2(p - Vector2(3, 20), Vector2(6, 6)), Color("decbb1"))
-			draw_line(p, p + Vector2(-3, 8), Color("6c7e84"), 3)
-			draw_line(p + Vector2(3, 0), p + Vector2(5, 8), Color("6c7e84"), 3)
-	else:
-		for i in 5:
-			var x := rect.end.x - 110 + i * 18
-			draw_line(Vector2(x, rect.position.y + 20), Vector2(x - 27, rect.position.y + 73), Color("273b45"), 2)
+	label_at(rect.position + Vector2(15, 24), title, 17, amber if built else muted)
+	label_at(rect.position + Vector2(15, 43), subtitle, 11, ink if built else muted)
+	ColonyView.draw_room(self, Rect2(rect.position + Vector2(15, 48), Vector2(367, 54)), kind, built, 0.0 if game.reduced_motion else game.elapsed, game.progress.drill_level)
 
 func clear_touches() -> void:
 	move_finger = -1
