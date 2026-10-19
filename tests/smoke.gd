@@ -112,6 +112,13 @@ func run() -> void:
 	game.foot_pos = Vector2(1800, 732)
 	game._step_enemies(0.1)
 	check(game.enemies[0].windup == 0.0, "losing distant target cancels pending spit attack")
+	var charger := {"charge_phase": "recover", "charge_time": 0.0}
+	check(game._charger_velocity(charger, Vector2(100, 0), true, 0.01) == 0 and charger.intent == "windup", "charger warns while stationary before rushing")
+	check(game._charger_velocity(charger, Vector2(-100, 0), true, 0.61) > 0, "dodging behind charger does not reverse its committed rush")
+	check(game._charger_velocity(charger, Vector2(-100, 0), true, 0.66) == 0 and charger.intent == "recover", "completed rush gives a stationary recovery window")
+	game._charger_velocity(charger, Vector2(-100, 0), true, 0.76)
+	check(charger.charge_direction == -1 and charger.intent == "windup", "next rush acquires a fresh direction with another warning")
+	check(game._charger_velocity(charger, Vector2(-100, 0), false, 0.1) == 0 and charger.intent == "recover", "breaking sight during warning cancels the rush")
 	game.foot_pos = Game.RELIC
 	game._step_player(1.0 / 60)
 	check(game.progress.regulator, "on-foot exploration recovers the regulator")

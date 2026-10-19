@@ -431,6 +431,8 @@ func _draw_enemy(enemy: Dictionary) -> void:
 	var p: Vector2 = enemy.pos
 	_shadow(p + Vector2(0, 13), Vector2(48, 9))
 	var facing := -1 if (game.rig_pos.x if game.mounted else game.foot_pos.x) < p.x else 1
+	if int(enemy.type) == 2 and enemy.get("intent", "idle") in ["windup", "charge"]:
+		facing = int(enemy.get("charge_direction", facing))
 	var winding: bool = enemy.get("intent", "idle") == "windup"
 	var recoil: float = float(enemy.get("recoil", 0.0)) / 0.22
 	p += Vector2(-facing * recoil * 4, 3 if winding else 0)

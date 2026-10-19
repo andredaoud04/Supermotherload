@@ -428,6 +428,29 @@ func _clear_line(from: Vector2, to: Vector2) -> bool:
 			return false
 	return true
 
+func _charger_velocity(enemy: Dictionary, toward: Vector2, visible: bool, dt: float) -> float:
+	var phase: String = enemy.get("charge_phase", "recover")
+	var remaining: float = maxf(0.0, float(enemy.get("charge_time", 0.6)) - dt)
+	if phase == "windup" and not visible:
+		phase = "recover"
+		remaining = 0.75
+	elif remaining <= 0:
+		if phase == "charge":
+			phase = "recover"
+			remaining = 0.75
+		elif phase == "windup":
+			phase = "charge"
+			remaining = 0.65
+		elif visible:
+			phase = "windup"
+			remaining = 0.6
+			# Commit when the warning starts, so crossing behind it is a real dodge.
+			enemy.charge_direction = -1.0 if toward.x < 0 else 1.0
+	enemy.charge_phase = phase
+	enemy.charge_time = remaining
+	enemy.intent = phase
+	return float(enemy.get("charge_direction", 1.0)) * 155.0 if phase == "charge" else 0.0
+
 func _step_enemies(dt: float) -> void:
 	var target := rig_pos if mounted else foot_pos
 	for enemy in enemies:
@@ -437,11 +460,18 @@ func _step_enemies(dt: float) -> void:
 		var toward: Vector2 = target - enemy.pos
 		if toward.length() > 620:
 			enemy.windup = 0.0
+			enemy.charge_phase = "recover"
+			enemy.charge_time = 0.6
 			continue
 		enemy.cooldown = float(enemy.cooldown) - dt
 		enemy.vy = minf(400, float(enemy.vy) + 700 * dt)
 		var speed := 0.0
-		if toward.length() < 420 and _clear_line(enemy.pos, target):
+		var direction := signf(toward.x)
+		var visible := toward.length() < 420 and _clear_line(enemy.pos, target)
+		if int(enemy.type) == 2:
+			speed = _charger_velocity(enemy, toward, visible, dt)
+			direction = 1.0
+		elif visible:
 			if int(enemy.type) == 1:
 				if float(enemy.cooldown) <= 0:
 					enemy.intent = "windup"
@@ -453,24 +483,16 @@ func _step_enemies(dt: float) -> void:
 						enemy.recoil = 0.22
 						enemy.intent = "recover"
 			else:
-				speed = 52.0 if int(enemy.type) == 0 else (155.0 if float(enemy.cooldown) < 0.7 else 10.0)
+				speed = 52.0
 				enemy.intent = "chase"
-				if int(enemy.type) == 2:
-					if float(enemy.cooldown) >= 0.7 and float(enemy.cooldown) < 1.3:
-						enemy.intent = "windup"
-						speed = 0.0
-					elif float(enemy.cooldown) < 0.7:
-						enemy.intent = "charge"
-				if float(enemy.cooldown) < -0.6:
-					enemy.cooldown = 1.9
 		else:
 			enemy.windup = 0.0
 		var previous: Vector2 = enemy.pos
-		enemy.pos = terrain.move_body(enemy.pos, Vector2(15, 13), Vector2(signf(toward.x) * speed, float(enemy.vy)) * dt)
+		enemy.pos = terrain.move_body(enemy.pos, Vector2(15, 13), Vector2(direction * speed, float(enemy.vy)) * dt)
 		enemy.gait = fmod(float(enemy.get("gait", 0.0)) + absf(enemy.pos.x - previous.x) * 0.2, TAU)
 		if is_equal_approx(previous.y, enemy.pos.y):
 			enemy.vy = 0
-		if toward.length() < (62 if mounted else 30):
+		if enemy.pos.distance_to(target) < (62 if mounted else 30) and _clear_line(enemy.pos, target):
 			if mounted and drilling:
 				enemy.hp -= dt * 120
 				enemy.flash = 0.12
