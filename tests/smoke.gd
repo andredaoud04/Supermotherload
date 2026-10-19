@@ -100,6 +100,18 @@ func run() -> void:
 	for i in 12:
 		game._step_bullets(1.0 / 60)
 	check(float(game.enemies[0].hp) < 45, "rifle projectile damages an enemy")
+	game.bullets.clear()
+	game.enemies = [{"pos": Vector2(885, 732), "type": 1, "hp": 45.0, "vy": 0.0, "cooldown": 0.0, "flash": 0.0}]
+	game._step_enemies(0.2)
+	check(game.bullets.is_empty() and game.enemies[0].intent == "windup", "spitter visibly prepares before firing")
+	game._step_enemies(0.26)
+	check(game.bullets.size() == 1 and game.enemies[0].recoil > 0, "completed spitter windup fires once and recoils")
+	game._step_enemies(0.1)
+	check(game.bullets.size() == 1, "spitter recovery prevents repeated immediate shots")
+	game.enemies[0].windup = 0.4
+	game.foot_pos = Vector2(1800, 732)
+	game._step_enemies(0.1)
+	check(game.enemies[0].windup == 0.0, "losing distant target cancels pending spit attack")
 	game.foot_pos = Game.RELIC
 	game._step_player(1.0 / 60)
 	check(game.progress.regulator, "on-foot exploration recovers the regulator")

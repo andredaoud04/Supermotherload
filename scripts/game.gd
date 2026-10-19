@@ -432,8 +432,11 @@ func _step_enemies(dt: float) -> void:
 	var target := rig_pos if mounted else foot_pos
 	for enemy in enemies:
 		enemy.flash = maxf(0, float(enemy.flash) - dt)
+		enemy.recoil = maxf(0, float(enemy.get("recoil", 0.0)) - dt)
+		enemy.intent = "idle"
 		var toward: Vector2 = target - enemy.pos
 		if toward.length() > 620:
+			enemy.windup = 0.0
 			continue
 		enemy.cooldown = float(enemy.cooldown) - dt
 		enemy.vy = minf(400, float(enemy.vy) + 700 * dt)
@@ -441,14 +444,30 @@ func _step_enemies(dt: float) -> void:
 		if toward.length() < 420 and _clear_line(enemy.pos, target):
 			if int(enemy.type) == 1:
 				if float(enemy.cooldown) <= 0:
-					bullets.append({"pos": enemy.pos, "vel": toward.normalized() * 190, "life": 3.0, "enemy": true})
-					enemy.cooldown = 1.8
+					enemy.intent = "windup"
+					enemy.windup = float(enemy.get("windup", 0.0)) + dt
+					if float(enemy.windup) >= 0.45:
+						bullets.append({"pos": enemy.pos, "vel": toward.normalized() * 190, "life": 3.0, "enemy": true})
+						enemy.cooldown = 1.8
+						enemy.windup = 0.0
+						enemy.recoil = 0.22
+						enemy.intent = "recover"
 			else:
 				speed = 52.0 if int(enemy.type) == 0 else (155.0 if float(enemy.cooldown) < 0.7 else 10.0)
+				enemy.intent = "chase"
+				if int(enemy.type) == 2:
+					if float(enemy.cooldown) >= 0.7 and float(enemy.cooldown) < 1.3:
+						enemy.intent = "windup"
+						speed = 0.0
+					elif float(enemy.cooldown) < 0.7:
+						enemy.intent = "charge"
 				if float(enemy.cooldown) < -0.6:
 					enemy.cooldown = 1.9
+		else:
+			enemy.windup = 0.0
 		var previous: Vector2 = enemy.pos
 		enemy.pos = terrain.move_body(enemy.pos, Vector2(15, 13), Vector2(signf(toward.x) * speed, float(enemy.vy)) * dt)
+		enemy.gait = fmod(float(enemy.get("gait", 0.0)) + absf(enemy.pos.x - previous.x) * 0.2, TAU)
 		if is_equal_approx(previous.y, enemy.pos.y):
 			enemy.vy = 0
 		if toward.length() < (62 if mounted else 30):

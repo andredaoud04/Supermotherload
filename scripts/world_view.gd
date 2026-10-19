@@ -431,13 +431,16 @@ func _draw_enemy(enemy: Dictionary) -> void:
 	var p: Vector2 = enemy.pos
 	_shadow(p + Vector2(0, 13), Vector2(48, 9))
 	var facing := -1 if (game.rig_pos.x if game.mounted else game.foot_pos.x) < p.x else 1
+	var winding: bool = enemy.get("intent", "idle") == "windup"
+	var recoil: float = float(enemy.get("recoil", 0.0)) / 0.22
+	p += Vector2(-facing * recoil * 4, 3 if winding else 0)
 	var color := Color("b8676c") if int(enemy.type) == 0 else Color("9580a8")
 	if int(enemy.type) == 2:
 		color = Color("956157")
 	if float(enemy.flash) > 0:
 		color = Color("fff0cc")
 	for i in 3:
-		var off := sin(game.elapsed * 11 + i * 2) * 3
+		var off := sin(float(enemy.get("gait", 0.0)) + i * 2) * 3
 		for side in [-1, 1]:
 			draw_polyline(PackedVector2Array([p + Vector2(side * 6, -4 + i * 3),
 				p + Vector2(side * (15 + i * 3), -4 + off), p + Vector2(side * (22 + i * 2), 12)]), color.darkened(0.2), 3)
@@ -447,7 +450,7 @@ func _draw_enemy(enemy: Dictionary) -> void:
 			p + Vector2(-6, -20), p + Vector2(7, -19), p + Vector2(17, -10), p + Vector2(17, 4), p + Vector2(2, 9)]), color.darkened(0.25))
 		for i in 3:
 			var sac := p + Vector2(-9 + i * 8, -8 - (i % 2) * 5)
-			draw_circle(sac, 5, Color("65926c") if float(enemy.flash) <= 0 else color)
+			draw_circle(sac, 7 if winding else 5, Color("b6e992") if winding else (Color("65926c") if float(enemy.flash) <= 0 else color))
 			draw_circle(sac + Vector2(-1, -2), 2, Color("b2d492"))
 		draw_line(p + Vector2(facing * 10, -5), p + Vector2(facing * 23, -2), color, 7)
 		draw_circle(p + Vector2(facing * 23, -2), 3, Color("d1ef9c"))
@@ -468,6 +471,6 @@ func _draw_enemy(enemy: Dictionary) -> void:
 		draw_rect(Rect2(p + Vector2(x, -7), Vector2(3, 4)), Color("ffcb8a") if int(enemy.type) != 1 else Color("9ef2bc"))
 	if int(enemy.type) == 2:
 		draw_line(p + Vector2(-9, -12), p + Vector2(7, -17), Color("d39a88"), 4)
-		if float(enemy.cooldown) < 0.9 and float(enemy.cooldown) > 0.65:
+		if winding:
 			_halo(p, Vector2(70, 55), Color(0.9, 0.2, 0.12, 0.15))
 			draw_string(font, p + Vector2(-3, -26), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("ffb080"))
