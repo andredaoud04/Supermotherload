@@ -1,5 +1,7 @@
 extends Node2D
 ## All visual decoration is disposable; gameplay never reads pixels or draw state.
+const RIG_ART = preload("res://assets/actors/starter-rig-v1.png")
+const MINER_ART = preload("res://assets/actors/miner-v1.png")
 var game: Node2D
 var font: Font
 var rock_atlas: ImageTexture
@@ -9,9 +11,13 @@ var last_rig := Vector2.ZERO
 var observed_rig := false
 var rig_moving := false
 var view := Rect2()
+# Visible alpha bounds; generated files also contain near-transparent edge pixels.
+const RIG_REGION := Rect2(136, 143, 1370, 711)
+const MINER_REGION := Rect2(258, 74, 644, 1251)
 
 func _ready() -> void:
 	font = ThemeDB.fallback_font
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	rock_atlas = _make_terrain_atlas()
 	var gradient := Gradient.new()
 	gradient.set_color(0, Color.WHITE)
@@ -336,46 +342,21 @@ func _draw_rig(p: Vector2) -> void:
 		bounce += sin(track_phase * 0.52) * 0.35
 	p.y += bounce
 	_shadow(p + Vector2(0, 23), Vector2(100, 13))
-	# Chunky tracked chassis with layered armor and a lit cab.
-	draw_rect(Rect2(p + Vector2(-45, 7), Vector2(88, 16)), Color("0b131b"))
-	for i in 6:
-		var wheel := p + Vector2(-34 + i * 13, 15)
-		draw_circle(wheel, 7, Color("48525a"))
-		draw_circle(wheel, 3, Color("18252d"))
-		var spoke := Vector2.from_angle(track_phase * 0.55 + i) * 4
-		draw_line(wheel - spoke, wheel + spoke, Color("929795"), 1)
-	for i in 8:
-		var x := -44.0 + fposmod(i * 12.0 + track_phase, 88.0)
-		draw_rect(Rect2(p + Vector2(x, 7), Vector2(6, 3)), Color("818780"))
-		draw_rect(Rect2(p + Vector2(-x - 4, 21), Vector2(6, 3)), Color("545f63"))
-	draw_rect(Rect2(p + Vector2(-41, -21), Vector2(79, 34)), Color("795226"))
-	draw_rect(Rect2(p + Vector2(-39, -24), Vector2(74, 28)), Color("d19b48"))
-	draw_rect(Rect2(p + Vector2(-38, -24), Vector2(72, 3)), Color("e7be78"))
-	draw_rect(Rect2(p + Vector2(-40, 2), Vector2(78, 5)), Color("37454c"))
-	draw_rect(Rect2(p + Vector2(-35, -20), Vector2(25, 20)), Color("445a62"))
-	draw_rect(Rect2(p + Vector2(-31, -18), Vector2(18, 13)), Color("93c8ce"))
-	draw_rect(Rect2(p + Vector2(-31, -18), Vector2(18, 3)), Color("c5e8d9"))
-	draw_rect(Rect2(p + Vector2(-23, -19), Vector2(2, 17)), Color("c39655"))
-	draw_line(p + Vector2(-29, -17), p + Vector2(-20, -7), Color("d4ede0"), 2)
-	if game.mounted:
-		draw_rect(Rect2(p + Vector2(-19, -12), Vector2(4, 5)), Color("29414b"))
-		draw_rect(Rect2(p + Vector2(-20, -13), Vector2(6, 2)), Color("e0b577"))
-	draw_rect(Rect2(p + Vector2(-5, -22), Vector2(22, 26)), Color("bd8b45"))
-	draw_rect(Rect2(p + Vector2(0, -18), Vector2(13, 18)), Color("34434c"))
-	for i in 4:
-		draw_line(p + Vector2(2, -14 + i * 4), p + Vector2(12, -14 + i * 4), Color("758486"), 1)
-	draw_rect(Rect2(p + Vector2(-29, -30), Vector2(48, 6)), Color("444a49"))
-	for x in [-24, -11, 2, 15]:
-		draw_rect(Rect2(p + Vector2(x - 1, -33), Vector2(9, 7)), Color("67706a"))
-		draw_rect(Rect2(p + Vector2(x, -32), Vector2(7, 5)), Color("ffe7a0"))
-	draw_rect(Rect2(p + Vector2(29, -35), Vector2(4, 13)), Color("3d4c52"))
-	draw_rect(Rect2(p + Vector2(28, -36), Vector2(6, 3)), Color("80918d"))
-	draw_line(p + Vector2(-23, -29), p + Vector2(-25, -43), Color("829699"), 1)
-	draw_rect(Rect2(p + Vector2(-26, -44), Vector2(3, 2)), Color("c57750"))
-	for x in [-35, -8, 23]:
-		draw_rect(Rect2(p + Vector2(x, 5), Vector2(3, 3)), Color("efdb9a"))
-		draw_rect(Rect2(p + Vector2(x, -22), Vector2(2, 2)), Color("efdb9a"))
-	draw_string(font, p + Vector2(17, -4), "07", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("fff1cd"))
+	# Facing mirrors the chassis while the drill remains independently articulated.
+	draw_set_transform(p, 0, Vector2(game.facing, 1))
+	draw_texture_rect_region(RIG_ART, Rect2(-46, -30, 92, 48), RIG_REGION)
+	for i in 7:
+		var tread_x := -38.0 + fposmod(i * 10.0 + track_phase, 66.0)
+		draw_rect(Rect2(tread_x, 16, 4, 2), Color("736b64"))
+	if game.progress.research:
+		draw_rect(Rect2(-21, -8, 20, 12), Color("586c71"))
+		draw_rect(Rect2(-20, -7, 18, 10), Color("9aa39c"), false, 1)
+		draw_line(Vector2(-17, -2), Vector2(-5, -2), Color("4b6167"), 2)
+	if not game.mounted:
+		# An open roof hatch clearly identifies the parked, empty vehicle.
+		draw_rect(Rect2(-9, -24, 16, 4), Color("172a35"))
+		draw_line(Vector2(-9, -25), Vector2(-15, -33), Color("d98b43"), 3)
+	draw_set_transform(Vector2.ZERO)
 	var direction: Vector2 = game.drill_direction
 	var mount := p + Vector2(direction.x * 38, direction.y * 18)
 	var side := Vector2(-direction.y, direction.x)
@@ -411,20 +392,19 @@ func _shadow(p: Vector2, size: Vector2) -> void:
 	draw_set_transform(Vector2.ZERO)
 
 func _draw_miner(p: Vector2, facing: int) -> void:
-	var step: float = sin(game.elapsed * 15) * 4 if absf(game.foot_velocity.x) > 1 else 0
-	_shadow(p + Vector2(0, 19), Vector2(30, 7))
-	draw_line(p + Vector2(-5, 6), p + Vector2(-6 + step, 17), Color("799299"), 6)
-	draw_line(p + Vector2(5, 6), p + Vector2(5 - step, 17), Color("425e6b"), 6)
-	draw_rect(Rect2(p + Vector2(-8, -9), Vector2(16, 20)), Color("bc8747"))
-	draw_rect(Rect2(p + Vector2(-5, -6), Vector2(10, 12)), Color("566975"))
-	draw_rect(Rect2(p + Vector2(-8, 7), Vector2(16, 3)), Color("2a414b"))
-	draw_rect(Rect2(p + Vector2(2, -5), Vector2(2, 4)), Color("a4d8c8"))
-	draw_rect(Rect2(p + Vector2(-facing * 12 - 3, -8), Vector2(7, 17)), Color("536c76"))
-	draw_rect(Rect2(p + Vector2(-9, -20), Vector2(18, 13)), Color("d8b16a"))
-	draw_rect(Rect2(p + Vector2(-8, -22), Vector2(14, 3)), Color("edd39a"))
-	draw_rect(Rect2(p + Vector2(-6, -16), Vector2(13, 6)), Color("203942"))
-	draw_rect(Rect2(p + Vector2(-4, -16), Vector2(9, 2)), Color("8bb9bc"))
-	draw_rect(Rect2(p + Vector2(facing * 7 - 2, -18), Vector2(5, 3)), Color("edffd5"))
+	var walking: bool = absf(game.foot_velocity.x) > 1 and absf(game.foot_velocity.y) < 20
+	var stride: float = sin(game.elapsed * 15) * 1.3 if walking else 0.0
+	_shadow(p + Vector2(0, 19), Vector2(28, 7))
+	draw_set_transform(p, 0, Vector2(facing, 1))
+	var split := MINER_REGION.size.y * 0.74
+	var torso := Rect2(MINER_REGION.position, Vector2(MINER_REGION.size.x, split))
+	# Texture regions share a waist seam; only the boot/leg region moves with gait.
+	draw_texture_rect_region(MINER_ART, Rect2(-12, -30, 24, 35.52), torso)
+	for leg in 2:
+		var source := Rect2(MINER_REGION.position + Vector2(MINER_REGION.size.x * leg * 0.5, split), Vector2(MINER_REGION.size.x * 0.5, MINER_REGION.size.y - split))
+		var phase := stride if leg == 0 else -stride
+		draw_texture_rect_region(MINER_ART, Rect2(-12 + leg * 12 + phase, 5.52 - absf(phase) * 0.4, 12, 12.48), source)
+	draw_set_transform(Vector2.ZERO)
 	var aim: Vector2 = game.weapon_direction
 	if aim.length_squared() < 0.01:
 		aim = Vector2(facing, 0)

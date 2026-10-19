@@ -32,10 +32,11 @@ func run() -> void:
 	var released_at := game.rig_pos
 	for i in 7:
 		game._step_player(1.0 / 60)
-	check(game.rig_velocity.length() < 0.1 and game.rig_pos.distance_to(released_at) < 10, "braking stops within ten pixels without prolonged drift")
+	check(absf(game.rig_velocity.x) < 0.1 and absf(game.rig_pos.x - released_at.x) < 10, "horizontal braking stops within ten pixels while gravity remains active")
 	game.touch_move = Vector2(0.08, 0)
 	game._step_player(1.0 / 60)
-	check(game.rig_velocity == Vector2.ZERO, "small joystick noise cannot move the rig")
+	check(is_zero_approx(game.rig_velocity.x), "small joystick noise cannot drive the rig")
+	check_rig_gravity(game)
 	game.touch_move = Vector2.RIGHT
 	game.rig_pos = Vector2(757, 272)
 	for i in 5:
@@ -128,3 +129,73 @@ func run() -> void:
 	await process_frame
 	print("CONTROLS TESTS: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)
+
+func check_rig_gravity(game: Node2D) -> void:
+	game.clear_controls()
+	game.rig_pos = Vector2(500, 200)
+	game._step_player(1.0 / 60)
+	check(game.rig_pos.y > 200 and game.rig_velocity.y > 0, "unsupported occupied rig falls without input")
+	for i in 120:
+		game._step_player(1.0 / 60)
+	var landed: Vector2 = game.rig_pos
+	check(landed.y > 330 and landed.y < 335 and is_zero_approx(game.rig_velocity.y), "rig lands on the station floor with no stored downward momentum")
+	for i in 120:
+		game._step_player(1.0 / 60)
+	check(game.rig_pos.is_equal_approx(landed) and not game.terrain.blocked(game.rig_pos, Game.RIG_HALF), "landed rig remains still without sinking or jitter")
+	game.touch_move = Vector2.UP
+	for i in 30:
+		game._step_player(1.0 / 60)
+	check(game.rig_pos.y < landed.y - 50 and game.rig_velocity.y < 0, "held up powers ascent from the floor for the return journey")
+	game.touch_move = Vector2.ZERO
+	for i in 30:
+		game._step_player(1.0 / 60)
+	check(game.rig_velocity.y > 0, "releasing ascent reverses upward momentum into a fall")
+	for i in 90:
+		game._step_player(1.0 / 60)
+	check(game.rig_pos.y > 330 and not game.terrain.blocked(game.rig_pos, Game.RIG_HALF), "released ascent returns to a safe landing")
+	game.clear_controls()
+	game.rig_pos = Vector2(300, 400)
+	for i in 90:
+		game._step_player(1.0 / 60)
+	check(game.rig_pos.y > 800 and game.rig_velocity.y <= Game.RIG_FALL_SPEED, "open shaft allows continuous descent capped at terminal speed")
+	game.rig_pos = Vector2(300, 100)
+	game.rig_velocity = Vector2.ZERO
+	game.touch_move = Vector2.UP
+	for i in 120:
+		game._step_player(1.0 / 60)
+	check(game.rig_pos.y >= 81.9 and not game.terrain.blocked(game.rig_pos, Game.RIG_HALF) and is_zero_approx(game.rig_velocity.y), "sustained ascent cannot penetrate the bedrock ceiling")
+	game.clear_controls()
+	game.rig_pos = Vector2(300, 500)
+	game.foot_pos = Vector2(800, 732)
+	game.mounted = false
+	for i in 30:
+		game._step_player(1.0 / 60)
+	check(game.rig_pos.y > 570 and game.rig_velocity.y > 0, "unoccupied rig falls when the pilot is on foot")
+	game.clear_controls()
+	game.rig_pos = Vector2(448, 332)
+	game.mounted = true
+	game.touch_move = Vector2.DOWN
+	for i in 100:
+		game._step_player(1.0 / 60)
+	check(game.rig_pos.y > 350 and game.progress.cargo_copper > 0 and not game.terrain.blocked(game.rig_pos, Game.RIG_HALF), "downward drilling removes support and lets gravity follow the mined passage")
+	game.clear_controls()
+	game.terrain.generate()
+	# A grounded body may overlap the exact tile edge within the collision contact tolerance.
+	# Horizontal drilling must remove the wall while preserving that supporting floor.
+	game.rig_pos = Vector2(758.02, 334.02)
+	var floor_tiles: Array[int] = []
+	for x in range(22, 28):
+		floor_tiles.append(game.terrain.at(Vector2i(x, 11)))
+	game.touch_move = Vector2.RIGHT
+	for i in 90:
+		game._step_player(1.0 / 60)
+	var floor_intact := true
+	for x in range(22, 28):
+		floor_intact = floor_intact and game.terrain.at(Vector2i(x, 11)) == floor_tiles[x - 22]
+	check(game.rig_pos.x > 790, "grounded rig drills forward through the station wall")
+	check(floor_intact and absf(game.rig_pos.y - 334.02) < 0.1, "horizontal drilling preserves the supporting floor at collision tolerance")
+	game.clear_controls()
+	game.terrain.generate()
+	game.progress.cargo_copper = 0
+	game.progress.cargo_crystal = 0
+	game.rig_pos = Game.ENTRY

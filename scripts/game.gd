@@ -8,6 +8,9 @@ const Hud = preload("res://scripts/hud.gd")
 const Sound = preload("res://scripts/sound.gd")
 const RIG_HALF := Vector2(42, 18)
 const FOOT_HALF := Vector2(10, 18)
+const RIG_GRAVITY := 620.0
+const RIG_FALL_SPEED := 360.0
+const RIG_ASCENT_SPEED := 185.0
 const ENTRY := Vector2(448, 272)
 const RELIC := Vector2(1040, 744)
 const ARCHIVE := Vector2(1100, 1670)
@@ -284,9 +287,6 @@ func _step_player(dt: float) -> void:
 		move = Vector2.ZERO
 	drilling = false
 	if mounted:
-		var desired := move * 185
-		# Reach cruising speed in 120ms; brake faster so precision steering stays responsive.
-		rig_velocity = rig_velocity.move_toward(desired, (1550.0 if move != Vector2.ZERO else 2200.0) * dt)
 		if move.length() > 0.15:
 			if absf(move.x) > absf(move.y):
 				drill_direction = Vector2(signf(move.x), 0)
@@ -311,12 +311,9 @@ func _step_player(dt: float) -> void:
 				if drill_sound_clock <= 0:
 					sounds.play_tone(65, 0.06, 0.13, true)
 					drill_sound_clock = 0.10
-		var previous := rig_pos
-		rig_pos = terrain.move_body(rig_pos, RIG_HALF, rig_velocity * dt)
-		# Track actual travel, so a blocked tread cannot keep accelerating or animating.
-		rig_velocity = (rig_pos - previous) / maxf(dt, 0.001)
+		_step_rig(dt, move)
 		return
-	rig_velocity = Vector2.ZERO
+	_step_rig(dt, Vector2.ZERO)
 	var grounded := terrain.blocked(foot_pos + Vector2(0, 2), FOOT_HALF)
 	if grounded:
 		jet = minf(max_jet(), jet + dt * 2.4)
@@ -349,6 +346,24 @@ func _step_player(dt: float) -> void:
 		sounds.play_tone(1100, 0.28, 0.2)
 		save_game()
 
+func _step_rig(dt: float, move: Vector2) -> void:
+	# Treads brake horizontally; vertical momentum remains subject to gravity.
+	rig_velocity.x = move_toward(rig_velocity.x, move.x * 185, (1550.0 if absf(move.x) > 0.15 else 2200.0) * dt)
+	rig_velocity.y = minf(RIG_FALL_SPEED, rig_velocity.y + RIG_GRAVITY * dt)
+	if move.y < -0.15:
+		# Held ascent provides lift for the return journey. Releasing it never hovers.
+		rig_velocity.y = move_toward(rig_velocity.y, move.y * RIG_ASCENT_SPEED, 1550.0 * dt)
+	elif move.y > 0.15:
+		rig_velocity.y = minf(RIG_FALL_SPEED, rig_velocity.y + move.y * 500.0 * dt)
+	var previous := rig_pos
+	var displacement := rig_velocity * dt
+	rig_pos = terrain.move_body(rig_pos, RIG_HALF, displacement)
+	var travel := rig_pos - previous
+	# Cancel vertical momentum on a floor or ceiling, including partial swept travel.
+	if absf(travel.y - displacement.y) > 0.01:
+		rig_velocity.y = 0
+	rig_velocity.x = travel.x / maxf(dt, 0.001)
+
 func interact() -> void:
 	if mode != "mine" or paused or map_open:
 		return
@@ -358,7 +373,7 @@ func interact() -> void:
 				foot_pos = rig_pos + offset
 				foot_velocity = Vector2.ZERO
 				mounted = false
-				rig_velocity = Vector2.ZERO
+				rig_velocity.x = 0
 				jet = max_jet()
 				notify("On foot. Aim + fire • Space to boost • E to board.")
 				save_game()

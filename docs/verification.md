@@ -1,5 +1,13 @@
 # Verification record
 
+## Rig gravity and actor sprites — October 19, 2026
+
+- Full Godot build and release export passed **166 checks, zero failures** (33 gameplay, 39 persistence, 38 controls, 20 colony, 36 networking).
+- Added falling, capped fall speed, powered ascent, floor/ceiling rest and unoccupied-rig gravity. Horizontal braking remains separate. No fall damage was added.
+- A second review caught grounded horizontal drilling crossing a floor tile due to different collision/mining tolerances. Mining now uses the collision inset; two regression checks preserve the supporting floor while drilling sideways.
+- Imported transparent orange-rig and miner sprites generated with the built-in image tool from the user's supplied reference sheets. Runtime regions exclude near-transparent margins; collision geometry stays unchanged. Tracks, directional drill, rifle aim, muzzle flash and boot gait remain driven by the game.
+- Chromium browser checks loaded both sprites, observed the rig settle at the lift, and dismounted beside the parked rig. Physical mobile performance and a bespoke animation sheet remain outstanding.
+
 ## Deep archive and research — October 18, 2026
 
 - Full Godot build passed **154 checks, zero failures** and the release web export, including 20 new colony checks.

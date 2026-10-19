@@ -80,8 +80,9 @@ func drill(center: Vector2, half: Vector2, direction: Vector2, power: float, ava
 	if direction == Vector2.ZERO:
 		return result
 	var target := center + direction * 9.0
-	var first := world_cell(target - half)
-	var last := world_cell(target + half)
+	# Match collision's contact tolerance so a flush floor or ceiling is not mined sideways.
+	var first := world_cell(target - half + Vector2.ONE * 0.1)
+	var last := world_cell(target + half - Vector2.ONE * 0.1)
 	for y in range(first.y, last.y + 1):
 		for x in range(first.x, last.x + 1):
 			var cell := Vector2i(x, y)

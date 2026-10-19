@@ -27,6 +27,8 @@ For native editor development, open `project.godot` in Godot 4.6.3. The project 
 | Pause and save | Escape | Pause |
 | Survey map | Tab or M | Map |
 
+The rig falls when unsupported. Hold up (W/up arrow or upward joystick) for ascent thrust; release to fall, and hold down to drill below. Park on solid ground before dismounting: empty rigs also obey gravity.
+
 Start by drilling down into the amber copper seam immediately below the lift. Bring at least 10 copper back to upgrade the drill bay. The pumping station to the right of the shaft contains a regulator that must be retrieved on foot. It unlocks the workshop with 8 banked copper. Blue crystals farther down help construct living quarters. Recover the archive on foot in the fungal chamber around 350m, then construct the research lab for 8 crystals and 120 credits after building both earlier rooms. Research increases hull to 150 and boost duration by 50%.
 
 Terrain, enemies, cargo, discoveries, upgrades, explored survey areas, preferences, and player position are saved automatically, and when boarding, returning, building, or pausing. The pause menu includes audio, reduced camera motion, control selection, and emergency recovery. Two checksum-validated save slots tolerate one interrupted/corrupt write. Browser saves use this origin's localStorage, with independently validated Godot filesystem copies. Older builds refuse to overwrite newer-format saves. Private browsing, clearing site data, changing domains, or storage denial can prevent retention. Saves do not synchronize across devices.

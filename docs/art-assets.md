@@ -1,0 +1,16 @@
+# Actor artwork provenance
+
+Created October 19, 2026 with the built-in imagegen tool. Both PNGs retain transparency and are project assets. The vehicle and character sheets supplied by the owner are style/subject references. No reference sheet, caption or concept background is shipped as gameplay scenery.
+
+- `assets/actors/starter-rig-v1.png`: modular chassis; independently drawn drill and animated track links. Visible alpha bounds: 136,143 / 1370×711.
+- `assets/actors/miner-v1.png`: empty-handed miner; independently aimed rifle and animated lower-leg regions. Visible alpha bounds: 258,74 / 644×1251.
+
+Source references: `Gemini_Generated_Image_rfxcewrfxcewrfxc (1).jpg` (vehicles) and `Gemini_Generated_Image_rfxcewrfxcewrfxc (2).jpg` (characters). Original generated files remain in the owner's Codex generated-images directory. Files are drawn with nearest texture filtering and do not define collision bounds.
+
+## Final rig prompt
+
+Use case: style-transfer. Create one production game sprite derived from V01 starter drill rig in this reference sheet, on a genuinely transparent canvas. Output ONLY the orange tracked vehicle CHASSIS, with NO drill bit: the separate drill will be animated in the game. Strict side-scrolling orthographic side view, facing RIGHT, not isometric. Wide chunky rectangular industrial cab, weathered burnt orange paint, dark steel armor, black continuous caterpillar tracks with five readable road wheels, slate blue small front cab window, rear exhaust at the LEFT, small warm roof lamps, visible front drill attachment flange at RIGHT. Professional detailed pixel art with hard pixel clusters, dark 2px outlines, restrained palette, clean readable silhouette at approximately 100x60 game pixels. Composition single whole vehicle centered occupying 85 percent canvas width, generous transparent border on all sides, no floor shadow, no ground, no caption, no sheet, no text, no logos. No white or checkerboard background. Match the charm and material rendering of V01 while making the chassis longer and more rectangular. Do not include any conical drill. This is a functional modular sprite asset, not concept art.
+
+## Final miner prompt
+
+Use case: style-transfer. Create ONE game-ready full-body sprite based on CH01 Miner Rig Pilot from the provided reference. Professional crisp pixel art for a side-scrolling mining survival game. Facing RIGHT in a side-on three-quarter profile with visible face. Yellow industrial hard hat with warm headlamp, brown hair, readable small human face with determined expression, weathered mustard yellow work suit, dark charcoal harness, steel kneepads, large dark boots, compact grey oxygen backpack on LEFT back. Same chunky appealing proportions as CH01 but slightly less baby-like. Neutral standing ready pose with feet a little apart and arms close to torso at waist height, EMPTY HANDS: no weapon, no tool, no gun (the game draws its independently aimed rifle). Whole body including boots and helmet completely visible. Single sprite centered occupying 80% canvas height, clean genuinely transparent background, no ground, no shadow, no labels, no portrait, no grid, no scenery. Limited color palette and distinct dark pixel outline, hard pixel clusters, readable when scaled to 38 pixels tall. This is a functional sprite asset, not an illustration.
