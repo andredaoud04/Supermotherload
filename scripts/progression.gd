@@ -66,13 +66,13 @@ func purchase(kind: String) -> String:
 			return "Workshop constructed. High-impact rifle rounds unlocked."
 		"quarters":
 			if quarters:
-				return "Living quarters are complete. Maximum health: 125."
+				return "Living quarters complete. Maximum health: 125. Two field kits per expedition."
 			if copper < 12 or crystal < 3:
 				return "Requires 12 copper and 3 blue crystals from the depths."
 			copper -= 12
 			crystal -= 3
 			quarters = true
-			return "Living quarters constructed. Maximum health increased to 125."
+			return "Living quarters constructed. Health: 125. Two field kits per expedition."
 		"research":
 			if research:
 				return "Research lab operational. Hull 150. Boost duration +50%."

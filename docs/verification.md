@@ -1,5 +1,13 @@
 # Verification record
 
+## Field medical supplies and combat playtest — October 22, 2026
+
+- Full Godot build and release export passed **185 checks, zero failures** (42 gameplay, 39 persistence, 38 controls, 30 colony, 36 networking).
+- Ten new colony checks cover actual boarding and healing, atomic save of kit consumption, repeat-boarding refusal, exhausted-kit reload, colony restocking, healthy boarding, health-cap clamping, quarters capacity, old-save defaults, and malformed-count rejection.
+- Chromium playtest on an isolated local origin: drilled to the pumping station, dismounted, fired at creatures, and recovered the regulator. The injured explorer had 37 health. Reloaded the updated build, boarded, saw the +40 health notification and 0/1 kits, then dismounted and observed 77 health. Browser error log was empty. Screenshot: ignored `artifacts/field-resupply-preview.jpg`.
+- Previous combat work added spitter windup/recoil and charger warning, committed rush direction, and stationary recovery. Automated timing checks cover these transitions; the first-chamber playtest does not establish balance for deeper chargers or touchscreen play.
+- Medical kits restock only through colony supply paths and emergency recovery. Quarters provide a second kit as well as increased health. No passive healing or new combat button was added.
+
 ## Rig gravity and actor sprites — October 19, 2026
 
 - Full Godot build and release export passed **166 checks, zero failures** (33 gameplay, 39 persistence, 38 controls, 20 colony, 36 networking).

@@ -122,6 +122,8 @@ func _valid_game_shape(data: Dictionary) -> bool:
 	for key in ["health", "hull"]:
 		if player.has(key) and not _finite_number(player[key]):
 			return false
+	if player.has("field_kits") and not _whole_number(player.field_kits, 0, 2):
+		return false
 	if player.has("mounted") and not player.mounted is bool:
 		return false
 	if player.has("mode") and player.mode not in ["mine", "colony"]:

@@ -29,6 +29,7 @@ var drill_direction := Vector2.RIGHT
 var drilling := false
 var health := 100.0
 var hull := 100.0
+var field_kits := 1
 var jet := 1.4
 var camera_pos := ENTRY
 var camera_offset := Vector2.ZERO
@@ -189,6 +190,7 @@ func start_game() -> void:
 		mounted = bool(state.get("mounted", true))
 		health = clampf(float(state.get("health", 100)), 1, max_health())
 		hull = clampf(float(state.get("hull", 100)), 1, max_hull())
+		field_kits = clampi(int(state.get("field_kits", max_field_kits())), 0, max_field_kits())
 		mode = "colony" if state.get("mode", "mine") == "colony" else "mine"
 		var settings: Variant = loaded.get("settings", {})
 		if settings is Dictionary:
@@ -382,7 +384,13 @@ func interact() -> void:
 	elif foot_pos.distance_to(rig_pos) < 100:
 		mounted = true
 		mouse_fire = false
-		notify("Rig online. Explore, extract, return.")
+		var restored := use_field_kit()
+		if restored > 0:
+			notify("Field kit: +%d health. %d remaining. Resupply at the colony." % [int(restored), field_kits])
+		elif health < max_health():
+			notify("Rig online. Field kits depleted; return to the colony for medical supplies.")
+		else:
+			notify("Rig online. Explore, extract, return.")
 		save_game()
 	else:
 		notify("Get closer to your drill to board.")
@@ -579,6 +587,18 @@ func surveyed(point: Vector2) -> bool:
 func max_health() -> float:
 	return 125.0 if progress.quarters else 100.0
 
+func max_field_kits() -> int:
+	return 2 if progress.quarters else 1
+
+func use_field_kit() -> float:
+	if field_kits <= 0 or health >= max_health():
+		return 0.0
+	var restored := minf(40.0, max_health() - health)
+	health += restored
+	field_kits -= 1
+	sounds.play_tone(740, 0.12, 0.12)
+	return restored
+
 func max_hull() -> float:
 	return 150.0 if progress.research else 100.0
 
@@ -600,6 +620,7 @@ func return_to_colony() -> void:
 	var earned := progress.deposit()
 	health = max_health()
 	hull = max_hull()
+	field_kits = max_field_kits()
 	mode = "colony"
 	clear_controls()
 	notify("Haul banked. +%d credits. Rig repaired and supplies restored." % earned)
@@ -614,6 +635,7 @@ func depart() -> void:
 	health = max_health()
 	hull = max_hull()
 	jet = max_jet()
+	field_kits = max_field_kits()
 	camera_pos = ENTRY
 	last_survey_cell = Vector2i(-999, -999)
 	reveal_area()
@@ -628,6 +650,7 @@ func build_room(kind: String) -> void:
 	health = minf(max_health(), health + 25)
 	hull = max_hull()
 	jet = max_jet()
+	field_kits = max_field_kits()
 	save_game()
 
 func recover() -> void:
@@ -641,6 +664,7 @@ func recover() -> void:
 	health = max_health()
 	hull = max_hull()
 	jet = max_jet()
+	field_kits = max_field_kits()
 	camera_pos = ENTRY
 	bullets.clear()
 	notify("Emergency recovery. Half your cargo was lost; colony progress is safe.")
@@ -660,5 +684,5 @@ func save_game() -> bool:
 		"settings": {"muted": sounds.muted, "reduced_motion": reduced_motion, "touch_controls": hud.show_touch, "manual_controls": hud.controls_selected},
 		"survey": survey.duplicate(),
 		"player": {"rig": [rig_pos.x, rig_pos.y], "foot": [foot_pos.x, foot_pos.y],
-			"mounted": mounted, "health": health, "hull": hull, "mode": mode}, "enemies": stored_enemies})
+			"mounted": mounted, "health": health, "hull": hull, "field_kits": field_kits, "mode": mode}, "enemies": stored_enemies})
 	return last_save_ok

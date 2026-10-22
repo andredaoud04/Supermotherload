@@ -113,6 +113,7 @@ func _draw_mine(screen: Vector2) -> void:
 		label_at(Vector2(23, screen.y - 82), "WASD move  ·  E board  ·  Space boost  ·  Tab map", 12, muted)
 	else:
 		_draw_touch(screen)
+	label_at(Vector2(25, 177 if game.mounted else 217), "FIELD KITS  %d/%d" % [game.field_kits, game.max_field_kits()], 12, cyan if game.field_kits > 0 else muted)
 	if not game.mounted:
 		var direction: Vector2 = game.rig_pos - game.foot_pos
 		label_at(Vector2(25, 177), "RIG  %dm  %s" % [int(direction.length() / 4), ">" if direction.x > 0 else "<"], 12, amber)
@@ -226,7 +227,7 @@ func _draw_colony(screen: Vector2) -> void:
 	draw_rect(Rect2(459 + offset, 217, 35, 42), Color("b89450"))
 	_room(Rect2(30 + offset, 149, 397, 146), "DRILL BAY", "LEVEL %d  ·  CARGO %d" % [game.progress.drill_level, game.progress.capacity()], true, 0)
 	_room(Rect2(529 + offset, 149, 397, 146), "WORKSHOP", "HIGH-IMPACT ROUNDS" if game.progress.workshop else "RECOVER THE REGULATOR", game.progress.workshop, 1)
-	_room(Rect2(30 + offset, 312, 397, 146), "LIVING QUARTERS", "+25 MAXIMUM HEALTH" if game.progress.quarters else "ROOM FOR A TOMORROW", game.progress.quarters, 2)
+	_room(Rect2(30 + offset, 312, 397, 146), "LIVING QUARTERS", "HEALTH 125 / 2 FIELD KITS" if game.progress.quarters else "MORE HEALTH / EXTRA FIELD KIT", game.progress.quarters, 2)
 	_room(Rect2(529 + offset, 312, 397, 146), "RESEARCH LAB", "HULL 150 / BOOST +50%" if game.progress.research else ("ARCHIVE RECOVERED" if game.progress.archive else "FIND THE ARCHIVE AT 350m"), game.progress.research, 3)
 	button("drill", Rect2(45 + offset, 251, 225, 34), "UPGRADE  ·  %d COPPER" % (10 + game.progress.drill_level * 10) if game.progress.drill_level < 3 else "FULLY UPGRADED")
 	button("workshop", Rect2(545 + offset, 251, 350, 34), "OPERATIONAL" if game.progress.workshop else "BUILD  ·  8 COPPER + REGULATOR")

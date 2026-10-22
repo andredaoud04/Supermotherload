@@ -91,6 +91,45 @@ func run() -> void:
 	check(game.hull == 137 and game.progress.research and game.progress.archive, "full save restoration retains research and hull above the original cap")
 	game.recover()
 	check(game.hull == 150 and is_equal_approx(game.jet, 2.1), "recovery refills upgraded equipment")
+	# Medical supplies belong to the rig and persist, rather than refilling at every boarding.
+	game.progress.quarters = false
+	game.depart()
+	game.health = 37
+	game.mounted = false
+	game.foot_pos = game.rig_pos + Vector2(66, 0)
+	game.interact()
+	check(game.mounted and game.health == 77 and game.field_kits == 0, "boarding uses one limited kit to restore forty health")
+	check(game.saves.read().player.field_kits == 0 and game.saves.read().player.health == 77, "boarding saves kit consumption and healing together")
+	game.mounted = false
+	game.interact()
+	check(game.health == 77 and game.field_kits == 0, "repeated boarding cannot regenerate medical supplies")
+	game.loaded = game.saves.read()
+	game.field_kits = 1
+	game.start_game()
+	check(game.field_kits == 0 and game.health == 77, "reloading cannot restore an exhausted field kit")
+	game.return_to_colony()
+	check(game.field_kits == 1 and game.health == 100, "colony return restocks the rig and heals the explorer")
+	game.depart()
+	game.mounted = false
+	game.foot_pos = game.rig_pos + Vector2(66, 0)
+	game.interact()
+	check(game.field_kits == 1, "healthy boarding preserves the kit")
+	game.health = 95
+	game.mounted = false
+	game.interact()
+	check(game.health == 100 and game.field_kits == 0, "partial healing consumes one kit without exceeding maximum health")
+	game.progress.quarters = true
+	game.recover()
+	check(game.field_kits == 2 and game.health == 125, "living quarters supply two kits on recovery")
+	game.save_game()
+	var old_save: Dictionary = game.saves.read()
+	old_save.player.erase("field_kits")
+	game.loaded = old_save
+	game.start_game()
+	check(game.field_kits == 2, "legacy saves receive their colony's medical capacity once")
+	var invalid_save: Dictionary = game.saves.read()
+	invalid_save.player.field_kits = "many"
+	check(not game.saves.write(invalid_save), "malformed field kit counts are rejected safely")
 	for slot in 2:
 		DirAccess.remove_absolute(game.saves.prefix + "_%d.json" % slot)
 	game.queue_free()
